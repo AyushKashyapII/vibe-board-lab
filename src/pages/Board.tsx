@@ -46,33 +46,45 @@ const Board = () => {
       ["yellow", "pink", "blue", "green", "orange"];
     const randomColor = colors[Math.floor(Math.random() * colors.length)];
     
+    // Calculate center of viewport accounting for navbar and scale
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight - 64; // Account for navbar height
+    const centerX = (viewportWidth / 2 - 100) / scale; // Account for scale and half item width
+    const centerY = (viewportHeight / 2 - 60) / scale; // Account for scale and half item height
+    
     const newItem: BoardItemData = {
       id: `note-${Date.now()}`,
       type: "note",
       content: "",
-      x: Math.random() * (window.innerWidth - 200) + 100,
-      y: Math.random() * (window.innerHeight - 200) + 150,
+      x: Math.max(50, centerX + (Math.random() - 0.5) * 100), // Add small random offset
+      y: Math.max(50, centerY + (Math.random() - 0.5) * 100),
       width: 200,
       height: 120,
       color: randomColor
     };
     
     saveToHistory([...items, newItem]);
-  }, [items, saveToHistory]);
+  }, [items, saveToHistory, scale]);
 
   const addImage = useCallback(() => {
+    // Calculate center of viewport accounting for navbar and scale
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight - 64; // Account for navbar height
+    const centerX = (viewportWidth / 2 - 100) / scale; // Account for scale and half item width
+    const centerY = (viewportHeight / 2 - 75) / scale; // Account for scale and half item height
+    
     const newItem: BoardItemData = {
       id: `image-${Date.now()}`,
       type: "image",
       content: "",
-      x: Math.random() * (window.innerWidth - 200) + 100,
-      y: Math.random() * (window.innerHeight - 200) + 150,
+      x: Math.max(50, centerX + (Math.random() - 0.5) * 100), // Add small random offset
+      y: Math.max(50, centerY + (Math.random() - 0.5) * 100),
       width: 200,
       height: 150
     };
     
     saveToHistory([...items, newItem]);
-  }, [items, saveToHistory]);
+  }, [items, saveToHistory, scale]);
 
   const updateItem = useCallback((id: string, updates: Partial<BoardItemData>) => {
     const newItems = items.map(item => 
@@ -124,13 +136,13 @@ const Board = () => {
       />
 
       <motion.main 
-        className="pt-16 h-screen relative"
+        className="pt-16 h-screen relative overflow-hidden"
         style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
       >
-        <div className="w-full h-full relative">
+        <div className="w-full h-full relative" style={{ minWidth: '100vw', minHeight: '100vh' }}>
           <AnimatePresence>
             {items.map((item) => (
               <BoardItem

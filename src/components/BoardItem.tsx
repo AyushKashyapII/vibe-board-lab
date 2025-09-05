@@ -76,14 +76,19 @@ const BoardItem = ({ item, onUpdate, onDelete, scale }: BoardItemProps) => {
         }}
         minWidth={120}
         minHeight={80}
-        bounds="parent"
+        bounds="window"
+        enableResizing={true}
+        disableDragging={isEditing}
+        dragHandleClassName="drag-handle"
         className="group"
+        style={{ cursor: isEditing ? 'text' : 'move' }}
       >
         <div 
           className={cn(
-            "w-full h-full rounded-lg shadow-soft hover:shadow-medium transition-all duration-300 border border-border/20 relative overflow-hidden",
+            "w-full h-full rounded-lg shadow-soft hover:shadow-medium transition-all duration-300 border border-border/20 relative overflow-hidden drag-handle",
             item.type === "note" && noteColorClasses[item.color || "yellow"],
-            item.type === "image" && "bg-card"
+            item.type === "image" && "bg-card",
+            isEditing && "cursor-text"
           )}
         >
           {/* Delete button */}
@@ -104,16 +109,18 @@ const BoardItem = ({ item, onUpdate, onDelete, scale }: BoardItemProps) => {
                   onChange={(e) => setContent(e.target.value)}
                   onBlur={handleContentSave}
                   onKeyDown={handleKeyDown}
-                  className="w-full h-full resize-none bg-transparent border-none outline-none text-sm placeholder:text-current/60"
+                  className="w-full h-full resize-none bg-transparent border-none outline-none text-sm placeholder:text-current/60 cursor-text"
                   placeholder="Type your note here..."
                   autoFocus
+                  onMouseDown={(e) => e.stopPropagation()}
                 />
               ) : (
                 <div
                   onClick={() => setIsEditing(true)}
+                  onMouseDown={(e) => e.stopPropagation()}
                   className="w-full h-full cursor-text text-sm overflow-hidden"
                 >
-                  {content || "Double-click to edit"}
+                  {content || "Click to edit"}
                 </div>
               )}
             </div>

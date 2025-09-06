@@ -2,17 +2,17 @@ import { motion } from "framer-motion";
 import { Rnd } from "react-rnd";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export interface BoardItemData {
   id: string;
   type: "note" | "image";
   content: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+  x: number; // canvas coords
+  y: number; // canvas coords
+  width: number; // canvas size
+  height: number; // canvas size
   color?: "yellow" | "pink" | "blue" | "green" | "orange";
 }
 
@@ -20,16 +20,36 @@ interface BoardItemProps {
   item: BoardItemData;
   onUpdate: (id: string, updates: Partial<BoardItemData>) => void;
   onDelete: (id: string) => void;
-  scale: number;
+  viewport: { x: number; y: number; scale: number };
+  // scale prop removed: we map sizes/positions into DOM coords ourselves
 }
 
-const BoardItem = ({ item, onUpdate, onDelete, scale }: BoardItemProps) => {
+const BoardItem = ({ item, onUpdate, onDelete, viewport }: BoardItemProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(item.content);
 
-  useEffect(() => {
-    setContent(item.content);
-  }, [item.content]);
+  useEffect(() => setContent(item.content), [item.content]);
+
+  // convert canvas -> DOM
+  const domX = Math.round(viewport.x + item.x * viewport.scale);
+  const domY = Math.round(viewport.y + item.y * viewport.scale);
+  const domW = Math.max(20, Math.round(item.width * viewport.scale));
+  const domH = Math.max(20, Math.round(item.height * viewport.scale));
+
+  // convert DOM -> canvas
+  const domToCanvasXY = (domLeft: number, domTop: number) => {
+    return {
+      x: (domLeft - viewport.x) / viewport.scale,
+      y: (domTop - viewport.y) / viewport.scale
+    };
+  };
+
+  const domToCanvasSize = (domW: number, domH: number) => {
+    return {
+      width: Math.max(40, domW / viewport.scale),
+      height: Math.max(40, domH / viewport.scale)
+    };
+  };
 
   const handleContentSave = () => {
     onUpdate(item.id, { content });
@@ -37,17 +57,13 @@ const BoardItem = ({ item, onUpdate, onDelete, scale }: BoardItemProps) => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && e.ctrlKey) {
-      handleContentSave();
-    } else if (e.key === 'Escape') {
-      setContent(item.content);
-      setIsEditing(false);
-    }
+    if (e.key === "Enter" && e.ctrlKey) handleContentSave();
+    if (e.key === "Escape") { setContent(item.content); setIsEditing(false); }
   };
 
   const noteColorClasses = {
     yellow: "bg-note-yellow text-note-yellow-foreground",
-    pink: "bg-note-pink text-note-pink-foreground", 
+    pink: "bg-note-pink text-note-pink-foreground",
     blue: "bg-note-blue text-note-blue-foreground",
     green: "bg-note-green text-note-green-foreground",
     orange: "bg-note-orange text-note-orange-foreground",
@@ -55,48 +71,57 @@ const BoardItem = ({ item, onUpdate, onDelete, scale }: BoardItemProps) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.8 }}
+      initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.8 }}
-      transition={{ duration: 0.3 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={{ duration: 0.18 }}
+      // make sure the motion wrapper doesn't intercept pointer events; the inner Rnd will.
+      style={{ pointerEvents: "none", position: "absolute", left: domX, top: domY, width: domW, height: domH }}
     >
       <Rnd
-        size={{ width: item.width, height: item.height }}
-        position={{ x: item.x, y: item.y }}
-        onDragStop={(e, d) => {
-          onUpdate(item.id, { x: d.x, y: d.y });
+        // Rnd is positioned/sized in DOM coords (container-relative)
+        position={{ x: domX, y: domY }}
+        size={{ width: domW, height: domH }}
+        bounds="parent"
+        enableResizing
+        disableDragging={isEditing}
+        dragHandleClassName="drag-handle"
+        onDragStop={(_e, d) => {
+          const canvasPos = domToCanvasXY(d.x, d.y);
+          onUpdate(item.id, { x: canvasPos.x, y: canvasPos.y });
         }}
-        onResizeStop={(e, direction, ref, delta, position) => {
+        onResizeStop={(_e, _direction, ref, _delta, position) => {
+          const newSize = domToCanvasSize(parseInt(ref.style.width, 10), parseInt(ref.style.height, 10));
+          const canvasPos = domToCanvasXY(position.x, position.y);
           onUpdate(item.id, {
-            width: parseInt(ref.style.width),
-            height: parseInt(ref.style.height),
-            x: position.x,
-            y: position.y,
+            width: Math.round(newSize.width),
+            height: Math.round(newSize.height),
+            x: canvasPos.x,
+            y: canvasPos.y,
           });
         }}
         minWidth={120}
         minHeight={80}
-        bounds="window"
-        enableResizing={true}
-        disableDragging={isEditing}
-        dragHandleClassName="drag-handle"
         className="group"
-        style={{ cursor: isEditing ? 'text' : 'move' }}
+        // make Rnd receive events
+        style={{ pointerEvents: "auto", touchAction: "none", zIndex: 50 }}
+        enableUserSelectHack={false}
       >
-        <div 
+        <div
           className={cn(
-            "w-full h-full rounded-lg shadow-soft hover:shadow-medium transition-all duration-300 border border-border/20 relative overflow-hidden drag-handle",
+            "w-full h-full rounded-lg shadow-soft transition-all duration-200 border border-border/20 relative overflow-hidden drag-handle",
             item.type === "note" && noteColorClasses[item.color || "yellow"],
             item.type === "image" && "bg-card",
             isEditing && "cursor-text"
           )}
+          // prevent container panning when interacting with content
+          onMouseDown={(e) => e.stopPropagation()}
         >
-          {/* Delete button */}
           <Button
             variant="ghost"
             size="sm"
             onClick={() => onDelete(item.id)}
-            className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground z-10"
+            className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground z-20"
           >
             <X className="h-3 w-3" />
           </Button>

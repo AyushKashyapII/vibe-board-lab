@@ -2,17 +2,17 @@ import { motion } from "framer-motion";
 import { Rnd } from "react-rnd";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
+import { useEffect, useState ,useRef} from "react";
 import { cn } from "@/lib/utils";
 
 export interface BoardItemData {
   id: string;
   type: "note" | "image";
   content: string;
-  x: number; // canvas coords
-  y: number; // canvas coords
-  width: number; // canvas size
-  height: number; // canvas size
+  x: number; 
+  y: number; 
+  width: number; 
+  height: number; 
   color?: "yellow" | "pink" | "blue" | "green" | "orange";
 }
 
@@ -27,8 +27,11 @@ interface BoardItemProps {
 const BoardItem = ({ item, onUpdate, onDelete, viewport }: BoardItemProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(item.content);
+  const fileInputRef=useRef<HTMLInputElement | null>(null);
 
   useEffect(() => setContent(item.content), [item.content]);
+
+
 
   // convert canvas -> DOM
   const domX = Math.round(viewport.x + item.x * viewport.scale);
@@ -68,6 +71,19 @@ const BoardItem = ({ item, onUpdate, onDelete, viewport }: BoardItemProps) => {
     green: "bg-note-green text-note-green-foreground",
     orange: "bg-note-orange text-note-orange-foreground",
   };
+
+  const handleImageUpload = (e:React.ChangeEvent<HTMLInputElement>)=>{
+    const file=e.target.files?.[0];
+    if(file){
+      const reader=new FileReader();
+      reader.onload=()=>{
+        if(reader.result){
+          onUpdate(item.id,{content:reader.result as string});
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  }
 
   return (
     <motion.div
@@ -151,12 +167,32 @@ const BoardItem = ({ item, onUpdate, onDelete, viewport }: BoardItemProps) => {
             </div>
           )}
 
-          {item.type === "image" && (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              <div className="text-center">
-                <div className="text-2xl mb-2">🖼️</div>
-                <div className="text-xs">Image Placeholder</div>
-              </div>
+{item.type === "image" && (
+            <div className="flex items-center justify-center h-full">
+              {item.content ? (
+                <img
+                  src={item.content}
+                  alt="Uploaded"
+                  className="w-full h-full object-contain"
+                  draggable={false}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center text-muted-foreground">
+                  <Button
+                    variant="secondary"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Upload Image
+                  </Button>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    ref={fileInputRef}
+                    className="hidden"
+                    onChange={handleImageUpload}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>

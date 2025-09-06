@@ -12,7 +12,6 @@ const Board = () => {
   const [history, setHistory] = useState<BoardItemData[][]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
 
-  // viewport is used for translate + scale of the canvas
   const [viewport, setViewport] = useState({ x: 0, y: 0, scale: 1 });
   const viewportRef = useRef(viewport);
   const rafPending = useRef<number | null>(null);
@@ -22,6 +21,8 @@ const Board = () => {
   const isPanningRef = useRef(false);
   const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
   const spacePressedRef = useRef(false);
+  const filInputRef = useRef(null);
+  
 
   // keep viewportRef in sync
   useEffect(() => { viewportRef.current = viewport; }, [viewport]);

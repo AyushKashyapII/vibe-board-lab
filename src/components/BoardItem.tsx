@@ -2,17 +2,17 @@ import { motion } from "framer-motion";
 import { Rnd } from "react-rnd";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState ,useRef} from "react";
+import { useEffect, useState, useRef } from "react";
 import { cn } from "@/lib/utils";
 
 export interface BoardItemData {
   id: string;
   type: "note" | "image";
   content: string;
-  x: number; 
-  y: number; 
-  width: number; 
-  height: number; 
+  x: number;
+  y: number;
+  width: number;
+  height: number;
   color?: "yellow" | "pink" | "blue" | "green" | "orange";
 }
 
@@ -27,7 +27,7 @@ interface BoardItemProps {
 const BoardItem = ({ item, onUpdate, onDelete, viewport }: BoardItemProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState(item.content);
-  const fileInputRef=useRef<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => setContent(item.content), [item.content]);
 
@@ -72,13 +72,13 @@ const BoardItem = ({ item, onUpdate, onDelete, viewport }: BoardItemProps) => {
     orange: "bg-note-orange text-note-orange-foreground",
   };
 
-  const handleImageUpload = (e:React.ChangeEvent<HTMLInputElement>)=>{
-    const file=e.target.files?.[0];
-    if(file){
-      const reader=new FileReader();
-      reader.onload=()=>{
-        if(reader.result){
-          onUpdate(item.id,{content:reader.result as string});
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (reader.result) {
+          onUpdate(item.id, { content: reader.result as string });
         }
       };
       reader.readAsDataURL(file);
@@ -167,7 +167,7 @@ const BoardItem = ({ item, onUpdate, onDelete, viewport }: BoardItemProps) => {
             </div>
           )}
 
-{item.type === "image" && (
+          {item.type === "image" && (
             <div className="flex items-center justify-center h-full">
               {item.content ? (
                 <img

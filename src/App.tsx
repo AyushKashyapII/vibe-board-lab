@@ -29,6 +29,7 @@ const App = () => (
             <Route path="/board" element={<Board />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/board/:id" element={<Board />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

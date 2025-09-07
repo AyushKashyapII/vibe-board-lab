@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useParams } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Toolbar from "@/components/Toolbar";
 import BoardItem, { BoardItemData } from "@/components/BoardItem";
+import { supabase } from "@/lib/supabase";
+import {socket} from "../../backend/socket";
 
 const CANVAS_SIZE = 10000;
 
@@ -22,10 +25,53 @@ const Board = () => {
   const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
   const spacePressedRef = useRef(false);
   const filInputRef = useRef(null);
+
   
 
-  // keep viewportRef in sync
+
+  const { id } = useParams<{ id: string }>();
+  console.log(id);
+  const [canvasName, setCanvasName] = useState("")
+  const [joinCode, setJoinCode] = useState("")
+
   useEffect(() => { viewportRef.current = viewport; }, [viewport]);
+
+  useEffect(()=>{
+    
+  },[id])
+
+  useEffect(() => {
+    const fetchCanvas = async () => {
+      if (!id) return;
+      const { data, error } = await supabase
+        .from("canvases")
+        .select("name,items,join_code")
+        .eq("id", id)
+        .single();
+
+      if (error) {
+        console.log("Error fetching database", error);
+        return;
+      }
+
+      console.log(data);
+
+      setCanvasName(data.name);
+      setJoinCode(data.join_code);
+      setItems(data.items || []);
+    }
+
+    fetchCanvas();
+  }, [id])
+
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(joinCode);
+      alert("Join code copied to clipboard");
+    } catch (err) {
+      console.error("Failed to copy the code: ", err);
+    }
+  };
 
   const setViewportRaf = useCallback((next: { x: number; y: number; scale: number }) => {
     // bound the viewport so the canvas doesn't go completely out of view
@@ -312,7 +358,11 @@ const Board = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 overflow-hidden">
-      <Navbar title="Live Mood Board 🎨" />
+      <Navbar
+        title={canvasName}
+        joinCode={joinCode || ""}
+      />
+
       <Toolbar
         onAddNote={addNote}
         onAddImage={addImage}
@@ -324,7 +374,6 @@ const Board = () => {
         canRedo={historyIndex < history.length - 1}
       />
 
-      {/* container covers viewport area below nav+toolbar */}
       <div
         ref={containerRef}
         className="fixed inset-0 top-16 overflow-hidden"

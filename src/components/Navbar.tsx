@@ -1,31 +1,113 @@
-import { Moon, Sun } from "lucide-react";
+import { Copy, Moon, Pencil, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { useParams } from "react-router-dom";
 
 interface NavbarProps {
   title: string;
+  joinCode: string;
 }
 
-const Navbar = ({ title }: NavbarProps) => {
+const Navbar = ({ title, joinCode }: NavbarProps) => {
   const { theme, setTheme } = useTheme();
+  const { id } = useParams<{ id: string }>();
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [newName, setNewName] = useState(title);
+
+  // keep newName in sync with prop title if it changes from outside
+  useEffect(() => {
+    setNewName(title);
+  }, [title]);
+
+  const handleShare = async () => {
+    if (!joinCode) {
+      alert("No join code available yet!");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(joinCode);
+      alert(`Join code "${joinCode}" copied to clipboard!`);
+    } catch (err) {
+      console.error("Failed to copy join code:", err);
+    }
+  };
+
+  const updateCanvas = async () => {
+    if (!id) return;
+
+    const { error } = await supabase
+      .from("canvases")
+      .update({ name: newName })
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error updating canvas:", error);
+    } else {
+      setIsEditing(false);
+    }
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
       <div className="flex items-center justify-between px-6 py-3">
-        <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-          {title}
-        </h1>
-        
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="hover:bg-accent"
-        >
-          <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          <span className="sr-only">Toggle theme</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          {isEditing ? (
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onBlur={updateCanvas}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") updateCanvas();
+                if (e.key === "Escape") {
+                  setIsEditing(false);
+                  setNewName(title); // reset
+                }
+              }}
+              className="border px-2 py-1 rounded text-sm"
+              autoFocus
+            />
+          ) : (
+            <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+  Live Mood Board 🎨 {newName ? `- ${newName}` : ""}
+</h1>
+
+          )}
+
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setIsEditing(true)}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="ml-4 flex items-center gap-2"
+            onClick={handleShare}
+          >
+            <Copy className="h-4 w-4" />
+            Share Code
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="hover:bg-accent"
+          >
+            <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <span className="sr-only">Toggle theme</span>
+          </Button>
+        </div>
       </div>
     </nav>
   );

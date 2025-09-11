@@ -5,7 +5,8 @@ import Navbar from "@/components/Navbar";
 import Toolbar from "@/components/Toolbar";
 import BoardItem, { BoardItemData } from "@/components/BoardItem";
 import { supabase } from "@/lib/supabase";
-import {socket} from "../../backend/socket";
+//import {socket} from "../../backend/socket";
+import { io } from "socket.io-client";
 
 const CANVAS_SIZE = 10000;
 
@@ -25,20 +26,58 @@ const Board = () => {
   const lastPointerRef = useRef<{ x: number; y: number } | null>(null);
   const spacePressedRef = useRef(false);
   const filInputRef = useRef(null);
+  const socketRef = useRef<any>(null);
 
-  
 
 
   const { id } = useParams<{ id: string }>();
-  console.log(id);
+  //const socket=io("http://localhost:4000");
+
+  useEffect(() => {
+    if (!id) return;
+
+    if (!socketRef.current) {
+      socketRef.current = io("http://localhost:4000");
+    }
+    const socket = socketRef.current;
+
+
+    socket.on("connect", () => {
+      socket.emit("joinBoard", id);
+    })
+
+    socket.on("item:add", (item) => {
+      setItems((prev) => [...prev, item]);
+    })
+    socket.on("item:update", ({id,updates}) => {
+      setItems(curr => curr.map(it => it.id === id ? { ...it, ...updates } : it))
+    })
+    socket.on("item:delete", (itemId) => {
+      setItems((prev) => prev.filter((it) => it.id !== itemId));
+    });
+    socket.on("disconnect", () => {
+      console.log("Disconencted from server");
+    })
+    return () => {
+      socket.off("item:add");
+      socket.off("item:update");
+      socket.off("item:delete");
+      socket.disconnect();
+      socketRef.current = null;
+    }
+  }, [])
+
+
   const [canvasName, setCanvasName] = useState("")
   const [joinCode, setJoinCode] = useState("")
 
   useEffect(() => { viewportRef.current = viewport; }, [viewport]);
 
-  useEffect(()=>{
-    
-  },[id])
+  useEffect(() => {
+
+  }, [id])
+
+  const boardId = id;
 
   useEffect(() => {
     const fetchCanvas = async () => {
@@ -54,7 +93,7 @@ const Board = () => {
         return;
       }
 
-      console.log(data);
+      //console.log(data);
 
       setCanvasName(data.name);
       setJoinCode(data.join_code);
@@ -74,10 +113,9 @@ const Board = () => {
   };
 
   const setViewportRaf = useCallback((next: { x: number; y: number; scale: number }) => {
-    // bound the viewport so the canvas doesn't go completely out of view
     const maxX = 0;
     const minX = -(CANVAS_SIZE * next.scale - (window.innerWidth));
-    const maxY = 64; // keep toolbar/nav visible
+    const maxY = 64;
     const minY = -(CANVAS_SIZE * next.scale - (window.innerHeight - 64));
 
     const boundedX = Math.max(minX, Math.min(maxX, next.x));
@@ -165,6 +203,9 @@ const Board = () => {
     };
 
     saveToHistory([...items, newItem]);
+    console.log("hitting add websockets ");
+    socketRef.current?.emit("item:add", { boardId: id, item: newItem });
+
   }, [items, lastClickedPosition, saveToHistory, getVisibleCenterInCanvas]);
 
   const addImage = useCallback(() => {
@@ -182,14 +223,29 @@ const Board = () => {
     };
 
     saveToHistory([...items, newItem]);
+    socketRef.current?.emit("item:add", { boardId: id, item: newItem });
+
   }, [items, lastClickedPosition, saveToHistory, getVisibleCenterInCanvas]);
 
   const updateItem = useCallback((id: string, updates: Partial<BoardItemData>) => {
+    if (!updates || Object.keys(updates).length === 0) {
+      return;
+    }
     setItems(curr => curr.map(it => it.id === id ? { ...it, ...updates } : it));
-  }, []);
+    console.log("hitting update ")
+    console.log(id, "  id ", updates, " updates ")
+    socketRef.current?.emit("item:update", {
+      boardId,
+      id,
+      updates,
+    })
+  }, [boardId]);
+
+
 
   const deleteItem = useCallback((id: string) => {
     saveToHistory(items.filter(i => i.id !== id));
+    socketRef.current?.emit("item:delete", { boardId, itemId: id });
   }, [items, saveToHistory]);
 
   const undo = useCallback(() => {

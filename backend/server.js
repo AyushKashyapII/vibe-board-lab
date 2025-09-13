@@ -18,39 +18,30 @@ io.on("connection", (socket) => {
   socket.on("joinBoard",(boardId)=>{
     socket.join(boardId);
     console.log(`socket ${socket.id} joined ${boardId}`);
-    io.to(boardId).emit("message",`user ${socket.id} joined`)
+    io.to(boardId).emit("message",`user ${socket.id} joined`);
   });
 
-  socket.on("item:add",({boardId,item})=>{
-    console.log("hitting here to add ")
-    socket.to(boardId).emit("item:add",item);
-  })
-
-  socket.on("item:update",(payload)=>{
-    if (!payload) {
-      console.error("Received null payload on item:update");
-      return;
-    }
-    const { boardId, id, updates } = payload;
-    if (!boardId || !id || !updates) {
-      console.error("Invalid payload:", payload);
-      return;
-    }
-    //console.log("id:", id, "updates:", updates);
-    socket.to(boardId).emit("item:update", {id,updates});
+  socket.on("item:add", ({ boardId, item }) => {
+    //console.log("Adding item", item);
+    socket.to(boardId).emit("item:add", item);
   });
-  
 
-  socket.on("item:delete",({boardId,itemId})=>{
-    console.log("deletng item ")
-    socket.to(boardId).emit("item:delete",itemId);
-  })
+  socket.on("item:update", ({ boardId, id: itemId, updates }) => {
+    //console.log("Received update:", itemId, updates);
+    socket.to(boardId).emit("item:update", { id: itemId, updates });
+  });
+
+  socket.on("item:delete", ({ boardId, itemId }) => {
+    //console.log("Deleting item", itemId);
+    socket.to(boardId).emit("item:delete", itemId);
+  });
 
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
   });
 });
 
+
 httpServer.listen(4000, () => {
-  console.log("🚀 WebSocket server running on http://localhost:4000");
+  console.log("WebSocket server running on http://localhost:4000");
 });

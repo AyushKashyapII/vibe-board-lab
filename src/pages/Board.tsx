@@ -31,41 +31,46 @@ const Board = () => {
 
 
   const { id } = useParams<{ id: string }>();
-  //const socket=io("http://localhost:4000");
-
   useEffect(() => {
     if (!id) return;
-
+  
     if (!socketRef.current) {
-      socketRef.current = io("http://localhost:4000");
+      socketRef.current=io("http://localhost:4000");
     }
     const socket = socketRef.current;
-
-
+  
     socket.on("connect", () => {
       socket.emit("joinBoard", id);
-    })
-
+    });
+  
     socket.on("item:add", (item) => {
       setItems((prev) => [...prev, item]);
-    })
-    socket.on("item:update", ({id,updates}) => {
-      setItems(curr => curr.map(it => it.id === id ? { ...it, ...updates } : it))
-    })
+    });
+  
+    socket.on("item:update", ({id: itemId, updates}) => {
+      setItems(curr => curr.map(it => it.id === itemId ? { ...it, ...updates } : it));
+    });
+  
     socket.on("item:delete", (itemId) => {
       setItems((prev) => prev.filter((it) => it.id !== itemId));
     });
+  
     socket.on("disconnect", () => {
-      console.log("Disconencted from server");
-    })
+      console.log("Disconnected from server");
+    });
+    // if (socket.connected) {
+    //   socket.emit("joinBoard", id);
+    // }
+  
     return () => {
       socket.off("item:add");
       socket.off("item:update");
       socket.off("item:delete");
-      socket.disconnect();
-      socketRef.current = null;
-    }
-  }, [])
+      socket.off("connect");
+      socket.off("disconnect");
+      //socket.emit("leaveBoard", id);
+    };
+  }, [id]);
 
 
   const [canvasName, setCanvasName] = useState("")
@@ -227,18 +232,26 @@ const Board = () => {
 
   }, [items, lastClickedPosition, saveToHistory, getVisibleCenterInCanvas]);
 
-  const updateItem = useCallback((id: string, updates: Partial<BoardItemData>) => {
+  const updateItem = useCallback((itemId: string, updates: Partial<BoardItemData>) => {
     if (!updates || Object.keys(updates).length === 0) {
       return;
     }
-    setItems(curr => curr.map(it => it.id === id ? { ...it, ...updates } : it));
-    console.log("hitting update ")
-    console.log(id, "  id ", updates, " updates ")
-    socketRef.current?.emit("item:update", {
+    
+    // Make sure we have both boardId and socket connection
+    if (!boardId || !socketRef.current) {
+      console.error("Missing boardId or socket connection");
+      return;
+    }
+  
+    setItems(curr => curr.map(it => it.id === itemId ? { ...it, ...updates } : it));
+    console.log("hitting update");
+    console.log(itemId, "id", updates, "updates");
+    
+    socketRef.current.emit("item:update", {
       boardId,
-      id,
+      id: itemId,
       updates,
-    })
+    });
   }, [boardId]);
 
 

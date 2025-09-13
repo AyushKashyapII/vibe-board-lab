@@ -31,8 +31,6 @@ const BoardItem = ({ item, onUpdate, onDelete, viewport }: BoardItemProps) => {
 
   useEffect(() => setContent(item.content), [item.content]);
 
-
-
   // convert canvas -> DOM
   const domX = Math.round(viewport.x + item.x * viewport.scale);
   const domY = Math.round(viewport.y + item.y * viewport.scale);
@@ -86,52 +84,47 @@ const BoardItem = ({ item, onUpdate, onDelete, viewport }: BoardItemProps) => {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      transition={{ duration: 0.18 }}
-      // make sure the motion wrapper doesn't intercept pointer events; the inner Rnd will.
-      style={{ pointerEvents: "none", position: "absolute", left: domX, top: domY, width: domW, height: domH }}
+    <Rnd
+      // Rnd is positioned/sized in DOM coords (container-relative)
+      position={{ x: domX, y: domY }}
+      size={{ width: domW, height: domH }}
+      bounds="parent"
+      enableResizing
+      disableDragging={isEditing}
+      onDragStop={(_e, d) => {
+        const canvasPos = domToCanvasXY(d.x, d.y);
+        onUpdate(item.id, { x: canvasPos.x, y: canvasPos.y });
+      }}
+      onResizeStop={(_e, _direction, ref, _delta, position) => {
+        const newSize = domToCanvasSize(parseInt(ref.style.width, 10), parseInt(ref.style.height, 10));
+        const canvasPos = domToCanvasXY(position.x, position.y);
+        onUpdate(item.id, {
+          width: Math.round(newSize.width),
+          height: Math.round(newSize.height),
+          x: canvasPos.x,
+          y: canvasPos.y,
+        });
+      }}
+      minWidth={120}
+      minHeight={80}
+      className="group"
+      // make Rnd receive events
+      style={{ pointerEvents: "auto", touchAction: "none", zIndex: 50 }}
+      enableUserSelectHack={false}
     >
-      <Rnd
-        // Rnd is positioned/sized in DOM coords (container-relative)
-        position={{ x: domX, y: domY }}
-        size={{ width: domW, height: domH }}
-        bounds="parent"
-        enableResizing
-        disableDragging={isEditing}
-        dragHandleClassName="drag-handle"
-        onDragStop={(_e, d) => {
-          const canvasPos = domToCanvasXY(d.x, d.y);
-          onUpdate(item.id, { x: canvasPos.x, y: canvasPos.y });
-        }}
-        onResizeStop={(_e, _direction, ref, _delta, position) => {
-          const newSize = domToCanvasSize(parseInt(ref.style.width, 10), parseInt(ref.style.height, 10));
-          const canvasPos = domToCanvasXY(position.x, position.y);
-          onUpdate(item.id, {
-            width: Math.round(newSize.width),
-            height: Math.round(newSize.height),
-            x: canvasPos.x,
-            y: canvasPos.y,
-          });
-        }}
-        minWidth={120}
-        minHeight={80}
-        className="group"
-        // make Rnd receive events
-        style={{ pointerEvents: "auto", touchAction: "none", zIndex: 50 }}
-        enableUserSelectHack={false}
+      <motion.div
+        className="w-full h-full bg-white shadow-md rounded p-2"
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.2 }}
       >
         <div
           className={cn(
-            "w-full h-full rounded-lg shadow-soft transition-all duration-200 border border-border/20 relative overflow-hidden drag-handle",
+            "w-full h-full rounded-lg shadow-soft transition-all duration-200 border border-border/20 relative overflow-hidden",
             item.type === "note" && noteColorClasses[item.color || "yellow"],
             item.type === "image" && "bg-card",
             isEditing && "cursor-text"
           )}
-          // prevent container panning when interacting with content
-          onMouseDown={(e) => e.stopPropagation()}
         >
           <Button
             variant="ghost"
@@ -153,12 +146,10 @@ const BoardItem = ({ item, onUpdate, onDelete, viewport }: BoardItemProps) => {
                   className="w-full h-full resize-none bg-transparent border-none outline-none text-sm placeholder:text-current/60 cursor-text"
                   placeholder="Type your note here..."
                   autoFocus
-                  onMouseDown={(e) => e.stopPropagation()}
                 />
               ) : (
                 <div
                   onClick={() => setIsEditing(true)}
-                  onMouseDown={(e) => e.stopPropagation()}
                   className="w-full h-full cursor-text text-sm overflow-hidden"
                 >
                   {content || "Click to edit"}
@@ -196,8 +187,8 @@ const BoardItem = ({ item, onUpdate, onDelete, viewport }: BoardItemProps) => {
             </div>
           )}
         </div>
-      </Rnd>
-    </motion.div>
+      </motion.div>
+    </Rnd>
   );
 };
 

@@ -21,7 +21,6 @@ interface BoardItemProps {
   onUpdate: (id: string, updates: Partial<BoardItemData>) => void;
   onDelete: (id: string) => void;
   viewport: { x: number; y: number; scale: number };
-  // scale prop removed: we map sizes/positions into DOM coords ourselves
 }
 
 const BoardItem = ({ item, onUpdate, onDelete, viewport }: BoardItemProps) => {
@@ -30,14 +29,11 @@ const BoardItem = ({ item, onUpdate, onDelete, viewport }: BoardItemProps) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => setContent(item.content), [item.content]);
-
-  // convert canvas -> DOM
   const domX = Math.round(viewport.x + item.x * viewport.scale);
   const domY = Math.round(viewport.y + item.y * viewport.scale);
   const domW = Math.max(20, Math.round(item.width * viewport.scale));
   const domH = Math.max(20, Math.round(item.height * viewport.scale));
 
-  // convert DOM -> canvas
   const domToCanvasXY = (domLeft: number, domTop: number) => {
     return {
       x: (domLeft - viewport.x) / viewport.scale,

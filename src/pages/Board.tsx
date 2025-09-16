@@ -53,7 +53,6 @@ const Board = () => {
 
   useEffect(() => {
     if (drawingCanvasRef.current) {
-      // This is the missing line that initializes the context!
       ctxRef.current = drawingCanvasRef.current.getContext("2d");
 
       if (ctxRef.current) {
@@ -71,7 +70,6 @@ const Board = () => {
       }
     }
   }, []);
-
 
   const [remoteCursors, setRemoteCursors] = useState<Record<string, { userName: string; x: number, y: number }>>({});
 
@@ -101,65 +99,38 @@ const Board = () => {
         console.error("Failed to fetch user:", error);
       }
     };
-
     fetchUser();
   }, []);
 
-  useEffect(() => {
-    if (!socketRef.current || !ctxRef.current) return;
-    const ctx = ctxRef.current;
-    const remoteStrokes = new Map<string, { lastPoint: Point; path: Path2D }>();
+useEffect(() => {
+  if (!socketRef.current || !ctxRef.current) return;
+  const ctx = ctxRef.current;
 
-    const handleStrokeStart = ({ stroke }: { stroke: Stroke }) => {
-      if (stroke.userId === userId) return;
-      ctx.save();
-      ctx.strokeStyle = stroke.color;
-      ctx.lineWidth = stroke.width;
-      ctx.lineJoin = "round";
-      ctx.lineCap = "round";
+  const handleStrokeEnd = ({ stroke }: { stroke: Stroke }) => {
+    if (stroke.userId === userId) return;
+    ctx.save();
+    ctx.strokeStyle = stroke.color;
+    ctx.lineWidth = stroke.width;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
 
-      const path = new Path2D();
-      const firstPoint = stroke.points[0];
-      path.moveTo(firstPoint.x, firstPoint.y);
+    ctx.beginPath();
+    const points = stroke.points;
+    if (points.length > 0) {
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  };
 
-      remoteStrokes.set(stroke.id, { lastPoint: firstPoint, path });
-    };
-
-    const handleStrokeDraw = ({ id, points }: { id: string; points: Point[] }) => {
-      const strokeData = remoteStrokes.get(id);
-      if (!strokeData) return;
-
-      ctx.save();
-      ctx.lineJoin = "round";
-      ctx.lineCap = "round";
-
-      points.forEach((point) => {
-        strokeData.path.lineTo(point.x, point.y);
-        strokeData.lastPoint = point;
-      });
-
-      ctx.stroke(strokeData.path);
-      ctx.restore();
-    };
-
-    const handleStrokeEnd = ({ stroke }: { stroke: Stroke }) => {
-      remoteStrokes.delete(stroke.id);
-    };
-
-    socketRef.current.on("stroke:start", handleStrokeStart);
-    socketRef.current.on("stroke:draw", handleStrokeDraw);
-    socketRef.current.on("stroke:end", handleStrokeEnd);
-
-    return () => {
-      socketRef.current.off("stroke:start", handleStrokeStart);
-      socketRef.current.off("stroke:draw", handleStrokeDraw);
-      socketRef.current.off("stroke:end", handleStrokeEnd);
-    };
-  }, [userId]);
-
-
-
-
+  socketRef.current.on("stroke:end", handleStrokeEnd);
+  return () => {
+    socketRef.current?.off("stroke:end", handleStrokeEnd);
+  };
+}, [userId]);
 
   useEffect(() => {
     if (!id) return;
@@ -426,172 +397,151 @@ const Board = () => {
   }, [boardId]);
 
   useEffect(() => {
-    if (tool !== "draw") return;
-    const canvas = drawingCanvasRef.current;
-    if (!canvas || !ctxRef.current) {
-      console.log("Canvas or context not available for drawing");
-      return;
-    }
-    
-    console.log("Setting up drawing handlers");
-    const ctx = ctxRef.current;
-  
-    let isDrawing = false;
-    let lastPoint: Point | null = null;
-    let pointBuffer: Point[] = [];
-  
-    const handlePointerDown = (e: PointerEvent) => {
-      if (e.button !== 0) return;
-      e.preventDefault();
-      console.log("Starting draw at:", e.clientX, e.clientY);
-      
-      isDrawing = true;
-      const p = screenToCanvas(e.clientX, e.clientY);
-      console.log("Canvas coords:", p);
-      lastPoint = p;
-      pointBuffer = [p];
-      
-      const stroke: Stroke = {
-        id: 'stroke-' + Date.now() + '-' + userId,
-        userId,
-        userName,
-        color: selectedColor,
-        width: parseInt(selectedWidth),
-        points: [p],
-      };
-      currentStrokeRef.current = stroke;
-  
-      // Set up canvas for drawing
+  if (tool !== "draw") return;
+  const canvas = drawingCanvasRef.current;
+  if (!canvas || !ctxRef.current) {
+    console.log("Canvas or context not available for drawing");
+    return;
+  }
+
+  const ctx = ctxRef.current;
+
+  let isDrawing = false;
+  let lastPoint: Point | null = null;
+  let pointBuffer: Point[] = [];
+  let rafId: number | null = null;
+  let lastEmitTime = 0;
+  const EMIT_INTERVAL = 32;
+
+  const handlePointerDown = (e: PointerEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+
+    isDrawing = true;
+    const p = screenToCanvas(e.clientX, e.clientY);
+    lastPoint = p;
+    pointBuffer = [p];
+
+    const stroke: Stroke = {
+      id: "stroke-" + Date.now() + "-" + userId,
+      userId,
+      userName,
+      color: selectedColor,
+      width: parseInt(selectedWidth),
+      points: [p],
+    };
+    currentStrokeRef.current = stroke;
+
+    ctx.strokeStyle = selectedColor;
+    ctx.lineWidth = parseInt(selectedWidth);
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+
+    ctx.fillStyle = selectedColor;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, parseInt(selectedWidth) / 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    socketRef.current?.emit("stroke:start", { boardId: id, stroke });
+  };
+
+  const handlePointerMove = (e: PointerEvent) => {
+    if (!isDrawing || !currentStrokeRef.current || !lastPoint) return;
+    e.preventDefault();
+
+    const p = screenToCanvas(e.clientX, e.clientY);
+    const dx = p.x - lastPoint.x;
+    const dy = p.y - lastPoint.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance >= 1) {
       ctx.strokeStyle = selectedColor;
       ctx.lineWidth = parseInt(selectedWidth);
-      ctx.lineJoin = "round";
-      ctx.lineCap = "round";
-      
       ctx.beginPath();
-      ctx.moveTo(p.x, p.y);
-      
-      ctx.fillStyle = selectedColor;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, parseInt(selectedWidth)/2, 0, Math.PI * 2);
-      ctx.fill();
-  
-      socketRef.current?.emit("stroke:start", { boardId: id, stroke });
-    };
-  
-    const handlePointerMove = (e: PointerEvent) => {
-      if (!isDrawing || !currentStrokeRef.current || !lastPoint) return;
-      e.preventDefault();
-      
-      const p = screenToCanvas(e.clientX, e.clientY);
-      
-      // Calculate distance
-      const dx = p.x - lastPoint.x;
-      const dy = p.y - lastPoint.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      
-      // Only draw if moved enough
-      if (distance >= 1) {
-        // Draw line segment immediately
-        ctx.strokeStyle = selectedColor;
-        ctx.lineWidth = parseInt(selectedWidth);
-        ctx.beginPath();
-        ctx.moveTo(lastPoint.x, lastPoint.y);
-        ctx.lineTo(p.x, p.y);
-        ctx.stroke();
-        
-        // Add to stroke and buffer
-        currentStrokeRef.current.points.push(p);
-        pointBuffer.push(p);
-        lastPoint = p;
-      }
-    };
-  
-    // Batch emit using RAF
-    let rafId: number | null = null;
-    let lastEmitTime = 0;
-    const EMIT_INTERVAL = 32; // 30fps for network
-    
-    const emitPendingPoints = () => {
-      const now = performance.now();
-      if (pointBuffer.length > 0 && (now - lastEmitTime) >= EMIT_INTERVAL) {
-        if (currentStrokeRef.current) {
-          socketRef.current?.emit("stroke:draw", {
-            boardId: id,
-            id: currentStrokeRef.current.id,
-            points: [...pointBuffer],
-          });
-          pointBuffer = [];
-          lastEmitTime = now;
-        }
-      }
-      
-      if (isDrawing) {
-        rafId = requestAnimationFrame(emitPendingPoints);
-      }
-    };
-  
-    const handlePointerUp = () => {
-      if (!isDrawing || !currentStrokeRef.current) return;
-      console.log("Ending stroke");
-      
-      isDrawing = false;
-      
-      // Cancel emit loop
-      if (rafId) {
-        cancelAnimationFrame(rafId);
-        rafId = null;
-      }
-      
-      // Emit remaining points
-      if (pointBuffer.length > 0) {
+      ctx.moveTo(lastPoint.x, lastPoint.y);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+
+      currentStrokeRef.current.points.push(p);
+      pointBuffer.push(p);
+      lastPoint = p;
+    }
+
+    if (isDrawing && !rafId) startEmitLoop();
+  };
+
+  const handlePointerUp = () => {
+    if (!isDrawing || !currentStrokeRef.current) return;
+
+    isDrawing = false;
+
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+
+    if (pointBuffer.length > 0) {
+      socketRef.current?.emit("stroke:draw", {
+        boardId: id,
+        id: currentStrokeRef.current.id,
+        points: [...pointBuffer],
+      });
+    }
+
+    socketRef.current?.emit("stroke:end", {
+      boardId: id,
+      stroke: currentStrokeRef.current,
+    });
+
+    currentStrokeRef.current = null;
+    lastPoint = null;
+    pointBuffer = [];
+  };
+
+  const emitPendingPoints = () => {
+    const now = performance.now();
+    if (pointBuffer.length > 0 && now - lastEmitTime >= EMIT_INTERVAL) {
+      if (currentStrokeRef.current) {
         socketRef.current?.emit("stroke:draw", {
           boardId: id,
           id: currentStrokeRef.current.id,
           points: [...pointBuffer],
         });
+        pointBuffer = [];
+        lastEmitTime = now;
       }
-      
-      // End stroke
-      socketRef.current?.emit("stroke:end", {
-        boardId: id,
-        stroke: currentStrokeRef.current,
-      });
-      
-      currentStrokeRef.current = null;
-      lastPoint = null;
-      pointBuffer = [];
-    };
-  
-    // Start emit loop when first moving
-    const startEmitLoop = () => {
-      if (!rafId && isDrawing) {
-        rafId = requestAnimationFrame(emitPendingPoints);
-      }
-    };
-  
-    // Add event listeners to canvas specifically
-    canvas.addEventListener("pointerdown", handlePointerDown);
-    canvas.addEventListener("pointermove", (e) => {
-      handlePointerMove(e);
-      if (isDrawing && !rafId) startEmitLoop();
-    });
-    canvas.addEventListener("pointerup", handlePointerUp);
-    canvas.addEventListener("pointerleave", handlePointerUp);
-  
-    return () => {
-      canvas.removeEventListener("pointerdown", handlePointerDown);
-      canvas.removeEventListener("pointermove", handlePointerMove);
-      canvas.removeEventListener("pointerup", handlePointerUp);
-      canvas.removeEventListener("pointerleave", handlePointerUp);
-      
-      if (rafId) {
-        cancelAnimationFrame(rafId);
-      }
-    };
-  }, [tool, selectedColor, selectedWidth, userId, userName, id, screenToCanvas]);
-  
+    }
 
+    if (isDrawing) {
+      rafId = requestAnimationFrame(emitPendingPoints);
+    }
+  };
 
+  const startEmitLoop = () => {
+    if (!rafId && isDrawing) {
+      rafId = requestAnimationFrame(emitPendingPoints);
+    }
+  };
+
+  canvas.addEventListener("pointerdown", handlePointerDown);
+  canvas.addEventListener("pointermove", handlePointerMove);
+  canvas.addEventListener("pointerup", handlePointerUp);
+  canvas.addEventListener("pointerleave", handlePointerUp);
+
+  return () => {
+    canvas.removeEventListener("pointerdown", handlePointerDown);
+    canvas.removeEventListener("pointermove", handlePointerMove);
+    canvas.removeEventListener("pointerup", handlePointerUp);
+    canvas.removeEventListener("pointerleave", handlePointerUp);
+
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+    }
+  };
+}, [tool, selectedColor, selectedWidth, userId, userName, id, screenToCanvas]);
 
 
   const deleteItem = useCallback((id: string) => {
@@ -613,13 +563,10 @@ const Board = () => {
     }
   }, [history, historyIndex]);
 
-  // Zooming (zoom at point)
   const zoomAtPoint = useCallback((clientX: number, clientY: number, deltaScale: number) => {
     const { x, y, scale: currentScale } = viewportRef.current;
     const targetScale = Math.max(0.1, Math.min(5, currentScale * deltaScale));
 
-    // convert pointer into board-space
-    // boardX/Y = (local - vx)/currentScale
     const container = containerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
@@ -629,7 +576,6 @@ const Board = () => {
     const boardX = (localX - x) / currentScale;
     const boardY = (localY - y) / currentScale;
 
-    // compute new viewport so the boardX/boardY remain under the pointer
     const nextX = localX - boardX * targetScale;
     const nextY = localY - boardY * targetScale;
 
@@ -639,12 +585,10 @@ const Board = () => {
   const zoomIn = useCallback(() => zoomAtPoint(window.innerWidth / 2, window.innerHeight / 2, 1.2), [zoomAtPoint]);
   const zoomOut = useCallback(() => zoomAtPoint(window.innerWidth / 2, window.innerHeight / 2, 1 / 1.2), [zoomAtPoint]);
 
-  // Wheel zoom (normal wheel will zoom)
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
     const handler = (e: WheelEvent) => {
-      // if user holds ctrl/meta, let the browser (or we still zoom) — we just always zoom
       e.preventDefault();
       const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
       zoomAtPoint(e.clientX, e.clientY, factor);
@@ -653,7 +597,6 @@ const Board = () => {
     return () => container.removeEventListener("wheel", handler);
   }, [zoomAtPoint]);
 
-  // Space key toggles hand cursor for panning
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.code === "Space") {
@@ -676,7 +619,6 @@ const Board = () => {
     };
   }, []);
 
-  // Middle mouse or space+drag panning
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -704,9 +646,8 @@ const Board = () => {
     };
 
     const onMouseDown = (e: MouseEvent) => {
-      // middle mouse OR space+left
       if (e.button === 1 || (spacePressedRef.current && e.button === 0)) {
-        e.preventDefault(); // prevents autoscroll
+        e.preventDefault(); 
         startPan(e.clientX, e.clientY);
       }
     };
@@ -730,7 +671,6 @@ const Board = () => {
     };
   }, [setViewportRaf]);
 
-  // initialize viewport to center the canvas
   useEffect(() => {
     const centerX = (window.innerWidth - CANVAS_SIZE) / 2;
     const centerY = (window.innerHeight - CANVAS_SIZE) / 2;
@@ -745,13 +685,11 @@ const Board = () => {
     }
   }
 
-  // handle canvas click (set lastClickedPosition). This click won't fire when clicking on BoardItem
   const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const canvasPos = screenToCanvas(e.clientX, e.clientY);
     setLastClickedPosition(canvasPos);
   };
 
-  // double click: add a note at double-clicked position
   const handleContainerDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     e.preventDefault();
     const canvasPos = screenToCanvas(e.clientX, e.clientY);
@@ -774,13 +712,7 @@ const Board = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 overflow-hidden">
-      <Navbar
-        title={canvasName}
-        joinCode={joinCode || ""}
-      />
-
-      {/* <div style={{ position: "relative", width: "100%", height: "100vh" }}>
-      </div> */}
+      <Navbar title={canvasName} joinCode={joinCode || ""} />
 
       <Toolbar
         onAddNote={addNote}
@@ -794,6 +726,26 @@ const Board = () => {
         onSelectDraw={changePencil}
       />
 
+      {tool === "draw" && (
+        <div className="sticky top-0 z-40 bg-white shadow-md p-2 flex gap-3 justify-center mt-12 w-fit mx-auto rounded-xl">
+          {["black", "red", "blue", "green", "orange", "purple", "pink", "brown"].map((c) => (
+            <button
+              key={c}
+              onClick={() => setSelectedColor(c)}
+              className={`w-8 h-8 rounded-full border-2 transition ${
+                selectedColor === c
+                  ? "ring-2 ring-offset-2 ring-[color:var(--tw-ring-color)]"
+                  : "border-gray-300"
+              }`}
+              style={{
+                backgroundColor: c,
+                ["--tw-ring-color" as any]: c,
+              }}
+            />
+          ))}
+        </div>
+      )}
+
       <div
         ref={containerRef}
         className="fixed inset-0 top-16 overflow-hidden"
@@ -806,7 +758,7 @@ const Board = () => {
           Zoom: {Math.round(viewport.scale * 100)}%
         </div>
 
-        {/* Canvas background (grid) — transformed by viewport */}
+        {/* Canvas background (grid) */}
         <motion.div
           className="absolute bg-card ring-border"
           style={{
@@ -820,15 +772,10 @@ const Board = () => {
           }}
         />
 
-        {/* Overlay layer for interactive items (positioned in DOM coords). 
-            pointerEvents is none so clicks fall through to canvas unless an item explicitly sets pointerEvents:auto */}
+        {/* Overlay items */}
         <div className="absolute inset-0 z-30" style={{ pointerEvents: "none" }}>
           <AnimatePresence>
-            {items.map(item => {
-              // convert canvas -> DOM for placement & sizing
-              const domPos = canvasToDom(item.x, item.y);
-              const domW = Math.max(20, Math.round(item.width * viewport.scale));
-              const domH = Math.max(20, Math.round(item.height * viewport.scale));
+            {items.map((item) => {
               return (
                 <BoardItem
                   key={item.id}
@@ -840,12 +787,15 @@ const Board = () => {
               );
             })}
           </AnimatePresence>
+
           <LiveCursors
             cursors={remoteCursors}
             canvasToDom={canvasToDom}
             currentUserId={userId}
             containerRef={containerRef}
           />
+
+          {/* Drawing canvas */}
           <canvas
             ref={drawingCanvasRef}
             className="absolute inset-0 z-20"
@@ -857,7 +807,6 @@ const Board = () => {
               pointerEvents: tool === "draw" ? "auto" : "none",
             }}
           />
-
         </div>
       </div>
     </div>

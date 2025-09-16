@@ -50,17 +50,9 @@ io.on("connection", (socket) => {
     socket.to(boardId).emit("item:delete", itemId);
   });
 
-  socket.on("stroke:start",(data)=>{
-    socket.to(data.boardId).emit("stroke:start",data);
-  })
-
-  socket.on("socket:draw",(data)=>{
-    socket.to(data.boardId).emit("start:draw",data);
-  })
-
-  socket.on("stroke:end",(data)=>{
-    socket.to(data.boardId).emit("stroke:end",data);
-  })
+  socket.on("stroke:end", ({ boardId, stroke }) => {
+    socket.to(boardId).emit("stroke:end", { stroke });
+  });
 
   socket.on("disconnect", () => {
     const boardId=socket.data.boardId;

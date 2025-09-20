@@ -10,17 +10,20 @@ const io = new Server(httpServer, {
     origin: "http://localhost:8080", 
     methods: ["GET", "POST"],
   },
+  transports:['websocket','polling'],
 });
 
 io.on("connection", (socket) => {
   //console.log("User connected:", socket.id);
 
   socket.on("joinBoard",({boardId,userId})=>{
+    //console.log("hitting here ")
     if(!boardId || !userId) return;
+    //console.log(`User ${userId} joining board ${boardId}`);
     socket.join(boardId);
     socket.data.boardId=boardId;
     socket.data.userId=userId;
-    console.log("socket room ",io.sockets.adapter.rooms)
+    //console.log("socket room ",io.sockets.adapter.rooms)
     io.to(boardId).emit("message",`user ${socket.id} joined`);
   });
 
@@ -29,11 +32,12 @@ io.on("connection", (socket) => {
     if(boardId){
       socket.leave(boardId);
       socket.to(boardId).emit("cursor:remove",userId);
+      socket.data.boardId=null;
+      socket.data.userId=null;
     }
   })
 
   socket.on("cursor:move",({boardId,userId,userName,x,y})=>{
-     //console.log("cursor  ",userId," ",x," ",y);
     socket.to(boardId).emit("cursor:update",{userId,userName,x,y});
   });
 
@@ -60,6 +64,7 @@ io.on("connection", (socket) => {
     if(boardId){
       socket.to(boardId).emit("cursor:remove",userId);
     }
+
     console.log("User disconnected:", socket.id);
   });
 });

@@ -8,8 +8,13 @@ import { supabase } from "@/lib/supabase";
 import { io } from "socket.io-client";
 import { getCurrentUser } from "@/lib/auth";
 import LiveCursors from "@/components/LiveCursors";
+import { Knob } from "react-rotary-knob";
+import { fetchCanvas, saveCanvas } from "@/lib/canva";
+import ThicknessWheel from "@/components/ThicknessWheel";
+import MiniMap from "@/components/MiniMap";
 
 const CANVAS_SIZE = 10000;
+const thicknessOptions = ["1px", "2px", "4px", "8px", "12px", "16px", "24px", "32px"];
 
 type Point = { x: number, y: number, t?: number };
 type Stroke = {
@@ -50,6 +55,11 @@ const Board = () => {
   const EMIT_INTERVAL = 16;
   const currentStrokeRef = useRef<Stroke | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+  // const [animatingStrokes,setAnimatingStrokes]=useState<Record<string,{
+  //   stroke:Stroke;
+  //   animatedPoints:Point[];
+
+  // }>({})
 
   useEffect(() => {
     if (drawingCanvasRef.current) {
@@ -71,9 +81,20 @@ const Board = () => {
     }
   }, []);
 
+
+
   const [remoteCursors, setRemoteCursors] = useState<Record<string, { userName: string; x: number, y: number }>>({});
 
   const { id } = useParams<{ id: string }>();
+  // useEffect(()=>{
+  //   if(!id) return;
+  //   const timeout=setTimeout(()=>{
+  //     saveCanvas(id,items);
+  //   },1000)
+  //   return()=>clearTimeout(timeout);
+  // },[id])
+
+
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -102,44 +123,65 @@ const Board = () => {
     fetchUser();
   }, []);
 
-useEffect(() => {
-  if (!socketRef.current || !ctxRef.current) return;
-  const ctx = ctxRef.current;
-
-  const handleStrokeEnd = ({ stroke }: { stroke: Stroke }) => {
-    if (stroke.userId === userId) return;
-    ctx.save();
-    ctx.strokeStyle = stroke.color;
-    ctx.lineWidth = stroke.width;
-    ctx.lineJoin = "round";
-    ctx.lineCap = "round";
-
-    ctx.beginPath();
-    const points = stroke.points;
-    if (points.length > 0) {
-      ctx.moveTo(points[0].x, points[0].y);
-      for (let i = 1; i < points.length; i++) {
-        ctx.lineTo(points[i].x, points[i].y);
-      }
-      ctx.stroke();
-    }
-    ctx.restore();
-  };
-
-  socketRef.current.on("stroke:end", handleStrokeEnd);
-  return () => {
-    socketRef.current?.off("stroke:end", handleStrokeEnd);
-  };
-}, [userId]);
-
   useEffect(() => {
     if (!id) return;
+    const data = fetchCanvas(id);
+    if (data) {
+      data.then((items) => {
+        setItems(items);
+      }).catch((err) => {
+        console.log("Error in fetching canvas", err);
+      });
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!socketRef.current || !ctxRef.current) return;
+    const ctx = ctxRef.current;
+
+    const handleStrokeEnd = ({ stroke }: { stroke: Stroke }) => {
+      if (stroke.userId === userId) return;
+      ctx.save();
+      ctx.strokeStyle = stroke.color;
+      ctx.lineWidth = stroke.width;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+
+      ctx.beginPath();
+      const points = stroke.points;
+      if (points.length > 0) {
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+          ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+    };
+
+    socketRef.current.on("stroke:end", handleStrokeEnd);
+    return () => {
+      socketRef.current?.off("stroke:end", handleStrokeEnd);
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!id || !userId) return;
 
     if (!socketRef.current) {
-      socketRef.current = io("http://localhost:4000");
+      socketRef.current = io("http://localhost:4000", {
+        transports: ['websocket', 'polling'],
+        timeout: 5000,
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: Infinity,
+        reconnectionDelayMax: 5000
+      });
     }
     const socket = socketRef.current;
     socket.on("connect", () => {
+      //console.log("Connected to server with id:", socket.id);
+      console.log(userId, " user id ", id, " board id")
       socket.emit("joinBoard", { boardId: id, userId });
     });
     socket.on("item:add", (item) => {
@@ -153,6 +195,7 @@ useEffect(() => {
     });
     socket.on("disconnect", () => {
       console.log("Disconnected from server");
+      //socket.emit("leaveBoard",{boardId:id,userId})
     });
 
     return () => {
@@ -350,7 +393,7 @@ useEffect(() => {
     };
 
     saveToHistory([...items, newItem]);
-    console.log("hitting add websockets ");
+    //console.log("hitting add websockets ");
     socketRef.current?.emit("item:add", { boardId: id, item: newItem });
 
   }, [items, lastClickedPosition, saveToHistory, getVisibleCenterInCanvas]);
@@ -386,8 +429,8 @@ useEffect(() => {
     }
 
     setItems(curr => curr.map(it => it.id === itemId ? { ...it, ...updates } : it));
-    console.log("hitting update");
-    console.log(itemId, "id", updates, "updates");
+    // console.log("hitting update");
+    // console.log(itemId, "id", updates, "updates");
 
     socketRef.current.emit("item:update", {
       boardId,
@@ -397,151 +440,151 @@ useEffect(() => {
   }, [boardId]);
 
   useEffect(() => {
-  if (tool !== "draw") return;
-  const canvas = drawingCanvasRef.current;
-  if (!canvas || !ctxRef.current) {
-    console.log("Canvas or context not available for drawing");
-    return;
-  }
+    if (tool !== "draw") return;
+    const canvas = drawingCanvasRef.current;
+    if (!canvas || !ctxRef.current) {
+      console.log("Canvas or context not available for drawing");
+      return;
+    }
 
-  const ctx = ctxRef.current;
+    const ctx = ctxRef.current;
 
-  let isDrawing = false;
-  let lastPoint: Point | null = null;
-  let pointBuffer: Point[] = [];
-  let rafId: number | null = null;
-  let lastEmitTime = 0;
-  const EMIT_INTERVAL = 32;
+    let isDrawing = false;
+    let lastPoint: Point | null = null;
+    let pointBuffer: Point[] = [];
+    let rafId: number | null = null;
+    let lastEmitTime = 0;
+    const EMIT_INTERVAL = 32;
 
-  const handlePointerDown = (e: PointerEvent) => {
-    if (e.button !== 0) return;
-    e.preventDefault();
+    const handlePointerDown = (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
 
-    isDrawing = true;
-    const p = screenToCanvas(e.clientX, e.clientY);
-    lastPoint = p;
-    pointBuffer = [p];
+      isDrawing = true;
+      const p = screenToCanvas(e.clientX, e.clientY);
+      lastPoint = p;
+      pointBuffer = [p];
 
-    const stroke: Stroke = {
-      id: "stroke-" + Date.now() + "-" + userId,
-      userId,
-      userName,
-      color: selectedColor,
-      width: parseInt(selectedWidth),
-      points: [p],
-    };
-    currentStrokeRef.current = stroke;
+      const stroke: Stroke = {
+        id: "stroke-" + Date.now() + "-" + userId,
+        userId,
+        userName,
+        color: selectedColor,
+        width: parseInt(selectedWidth),
+        points: [p],
+      };
+      currentStrokeRef.current = stroke;
 
-    ctx.strokeStyle = selectedColor;
-    ctx.lineWidth = parseInt(selectedWidth);
-    ctx.lineJoin = "round";
-    ctx.lineCap = "round";
-
-    ctx.beginPath();
-    ctx.moveTo(p.x, p.y);
-
-    ctx.fillStyle = selectedColor;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, parseInt(selectedWidth) / 2, 0, Math.PI * 2);
-    ctx.fill();
-
-    socketRef.current?.emit("stroke:start", { boardId: id, stroke });
-  };
-
-  const handlePointerMove = (e: PointerEvent) => {
-    if (!isDrawing || !currentStrokeRef.current || !lastPoint) return;
-    e.preventDefault();
-
-    const p = screenToCanvas(e.clientX, e.clientY);
-    const dx = p.x - lastPoint.x;
-    const dy = p.y - lastPoint.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    if (distance >= 1) {
       ctx.strokeStyle = selectedColor;
       ctx.lineWidth = parseInt(selectedWidth);
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+
       ctx.beginPath();
-      ctx.moveTo(lastPoint.x, lastPoint.y);
-      ctx.lineTo(p.x, p.y);
-      ctx.stroke();
+      ctx.moveTo(p.x, p.y);
 
-      currentStrokeRef.current.points.push(p);
-      pointBuffer.push(p);
-      lastPoint = p;
-    }
+      ctx.fillStyle = selectedColor;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, parseInt(selectedWidth) / 2, 0, Math.PI * 2);
+      ctx.fill();
 
-    if (isDrawing && !rafId) startEmitLoop();
-  };
+      socketRef.current?.emit("stroke:start", { boardId: id, stroke });
+    };
 
-  const handlePointerUp = () => {
-    if (!isDrawing || !currentStrokeRef.current) return;
+    const handlePointerMove = (e: PointerEvent) => {
+      if (!isDrawing || !currentStrokeRef.current || !lastPoint) return;
+      e.preventDefault();
 
-    isDrawing = false;
+      const p = screenToCanvas(e.clientX, e.clientY);
+      const dx = p.x - lastPoint.x;
+      const dy = p.y - lastPoint.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
 
-    if (rafId) {
-      cancelAnimationFrame(rafId);
-      rafId = null;
-    }
+      if (distance >= 1) {
+        ctx.strokeStyle = selectedColor;
+        ctx.lineWidth = parseInt(selectedWidth);
+        ctx.beginPath();
+        ctx.moveTo(lastPoint.x, lastPoint.y);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
 
-    if (pointBuffer.length > 0) {
-      socketRef.current?.emit("stroke:draw", {
-        boardId: id,
-        id: currentStrokeRef.current.id,
-        points: [...pointBuffer],
-      });
-    }
+        currentStrokeRef.current.points.push(p);
+        pointBuffer.push(p);
+        lastPoint = p;
+      }
 
-    socketRef.current?.emit("stroke:end", {
-      boardId: id,
-      stroke: currentStrokeRef.current,
-    });
+      if (isDrawing && !rafId) startEmitLoop();
+    };
 
-    currentStrokeRef.current = null;
-    lastPoint = null;
-    pointBuffer = [];
-  };
+    const handlePointerUp = () => {
+      if (!isDrawing || !currentStrokeRef.current) return;
 
-  const emitPendingPoints = () => {
-    const now = performance.now();
-    if (pointBuffer.length > 0 && now - lastEmitTime >= EMIT_INTERVAL) {
-      if (currentStrokeRef.current) {
+      isDrawing = false;
+
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+
+      if (pointBuffer.length > 0) {
         socketRef.current?.emit("stroke:draw", {
           boardId: id,
           id: currentStrokeRef.current.id,
           points: [...pointBuffer],
         });
-        pointBuffer = [];
-        lastEmitTime = now;
       }
-    }
 
-    if (isDrawing) {
-      rafId = requestAnimationFrame(emitPendingPoints);
-    }
-  };
+      socketRef.current?.emit("stroke:end", {
+        boardId: id,
+        stroke: currentStrokeRef.current,
+      });
 
-  const startEmitLoop = () => {
-    if (!rafId && isDrawing) {
-      rafId = requestAnimationFrame(emitPendingPoints);
-    }
-  };
+      currentStrokeRef.current = null;
+      lastPoint = null;
+      pointBuffer = [];
+    };
 
-  canvas.addEventListener("pointerdown", handlePointerDown);
-  canvas.addEventListener("pointermove", handlePointerMove);
-  canvas.addEventListener("pointerup", handlePointerUp);
-  canvas.addEventListener("pointerleave", handlePointerUp);
+    const emitPendingPoints = () => {
+      const now = performance.now();
+      if (pointBuffer.length > 0 && now - lastEmitTime >= EMIT_INTERVAL) {
+        if (currentStrokeRef.current) {
+          socketRef.current?.emit("stroke:draw", {
+            boardId: id,
+            id: currentStrokeRef.current.id,
+            points: [...pointBuffer],
+          });
+          pointBuffer = [];
+          lastEmitTime = now;
+        }
+      }
 
-  return () => {
-    canvas.removeEventListener("pointerdown", handlePointerDown);
-    canvas.removeEventListener("pointermove", handlePointerMove);
-    canvas.removeEventListener("pointerup", handlePointerUp);
-    canvas.removeEventListener("pointerleave", handlePointerUp);
+      if (isDrawing) {
+        rafId = requestAnimationFrame(emitPendingPoints);
+      }
+    };
 
-    if (rafId) {
-      cancelAnimationFrame(rafId);
-    }
-  };
-}, [tool, selectedColor, selectedWidth, userId, userName, id, screenToCanvas]);
+    const startEmitLoop = () => {
+      if (!rafId && isDrawing) {
+        rafId = requestAnimationFrame(emitPendingPoints);
+      }
+    };
+
+    canvas.addEventListener("pointerdown", handlePointerDown);
+    canvas.addEventListener("pointermove", handlePointerMove);
+    canvas.addEventListener("pointerup", handlePointerUp);
+    canvas.addEventListener("pointerleave", handlePointerUp);
+
+    return () => {
+      canvas.removeEventListener("pointerdown", handlePointerDown);
+      canvas.removeEventListener("pointermove", handlePointerMove);
+      canvas.removeEventListener("pointerup", handlePointerUp);
+      canvas.removeEventListener("pointerleave", handlePointerUp);
+
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+      }
+    };
+  }, [tool, selectedColor, selectedWidth, userId, userName, id, screenToCanvas]);
 
 
   const deleteItem = useCallback((id: string) => {
@@ -647,7 +690,7 @@ useEffect(() => {
 
     const onMouseDown = (e: MouseEvent) => {
       if (e.button === 1 || (spacePressedRef.current && e.button === 0)) {
-        e.preventDefault(); 
+        e.preventDefault();
         startPan(e.clientX, e.clientY);
       }
     };
@@ -724,27 +767,72 @@ useEffect(() => {
         canUndo={historyIndex >= 0}
         canRedo={historyIndex < history.length - 1}
         onSelectDraw={changePencil}
+        saveCanvas={() => {
+          saveCanvas(id, items)
+        }}
       />
 
+      <MiniMap
+        items={items}
+        viewport={{
+          x: viewport.x,
+          y: viewport.y,
+          scale: viewport.scale
+        }}
+      />
+
+
+
+
       {tool === "draw" && (
-        <div className="sticky top-0 z-40 bg-white shadow-md p-2 flex gap-3 justify-center mt-12 w-fit mx-auto rounded-xl">
-          {["black", "red", "blue", "green", "orange", "purple", "pink", "brown"].map((c) => (
+        <div className="sticky top-0 z-40 bg-white shadow-md p-2 flex gap-6 justify-center mt-20 w-fit mx-auto rounded-xl items-center">
+
+          {/* Color Selector */}
+          <div className="flex gap-2">
+            {["black", "red", "blue", "green", "orange", "purple", "pink", "brown"].map((c) => (
+              <button
+                key={c}
+                onClick={() => setSelectedColor(c)}
+                className={`w-8 h-8 rounded-full border-2 transition ${selectedColor === c
+                    ? "ring-2 ring-offset-2 ring-[color:var(--tw-ring-color)]"
+                    : "border-gray-300"
+                  }`}
+                style={{
+                  backgroundColor: c,
+                  ["--tw-ring-color" as any]: c,
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Thickness Selector with arrows */}
+          <div className="flex items-center gap-2">
             <button
-              key={c}
-              onClick={() => setSelectedColor(c)}
-              className={`w-8 h-8 rounded-full border-2 transition ${
-                selectedColor === c
-                  ? "ring-2 ring-offset-2 ring-[color:var(--tw-ring-color)]"
-                  : "border-gray-300"
-              }`}
-              style={{
-                backgroundColor: c,
-                ["--tw-ring-color" as any]: c,
+              onClick={() => {
+                const idx = thicknessOptions.indexOf(selectedWidth);
+                if (idx > 0) setSelectedWidth(thicknessOptions[idx - 1]);
               }}
-            />
-          ))}
+              className="px-2 py-1 border rounded"
+            >
+              –
+            </button>
+
+            <span className="min-w-[40px] text-center font-medium">{selectedWidth}</span>
+
+            <button
+              onClick={() => {
+                const idx = thicknessOptions.indexOf(selectedWidth);
+                if (idx < thicknessOptions.length - 1) setSelectedWidth(thicknessOptions[idx + 1]);
+              }}
+              className="px-2 py-1 border rounded"
+            >
+              +
+            </button>
+          </div>
         </div>
       )}
+
+
 
       <div
         ref={containerRef}

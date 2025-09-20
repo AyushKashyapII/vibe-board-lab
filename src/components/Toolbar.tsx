@@ -1,4 +1,4 @@
-import { Plus, Image, Undo, Redo, ZoomIn, ZoomOut, StickyNote, Pencil } from "lucide-react";
+import { Plus, Image, Undo, Redo, ZoomIn, ZoomOut, StickyNote, Pencil, SaveAll } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
@@ -10,6 +10,7 @@ interface ToolbarProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onSelectDraw:()=>void;
+  saveCanvas:()=>void;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -23,7 +24,8 @@ const Toolbar = ({
   onZoomOut,
   canUndo,
   canRedo,
-  onSelectDraw
+  onSelectDraw,
+  saveCanvas
 }: ToolbarProps) => {
   return (
     <div className="fixed left-4 top-1/2 -translate-y-1/2 z-40">
@@ -102,6 +104,18 @@ const Toolbar = ({
           title="Zoom Out"
         >
           <ZoomOut className="h-4 w-4" />
+        </Button>
+
+        <Separator />
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={saveCanvas}
+          className="hover:bg-accent hover:text-accent-foreground transition-colors"
+          title="Save Board"
+        >
+          <SaveAll className="h-4 w-4" />
         </Button>
       </div>
     </div>

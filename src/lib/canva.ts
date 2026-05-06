@@ -23,7 +23,7 @@ export async function createBoard(
 
 const { data: profile, error: profileFetchError } = await supabase
   .from("profiles")
-  .select("canvas_ids")
+  .select("canvas_ids, personal_canvas_id, shared_canvas_ids")
   .eq("id", userId)
   .single();
 
@@ -33,7 +33,14 @@ const updatedCanvasIds = [...(profile.canvas_ids || []), canvas.id];
 
 const { error: profileUpdateError } = await supabase
   .from("profiles")
-  .update({ canvas_ids: updatedCanvasIds })
+  .update({
+    canvas_ids: updatedCanvasIds,
+    personal_canvas_id: type === "personal" ? canvas.id : profile.personal_canvas_id,
+    shared_canvas_ids:
+      type === "shared"
+        ? Array.from(new Set([...(profile.shared_canvas_ids || []), canvas.id]))
+        : profile.shared_canvas_ids || [],
+  })
   .eq("id", userId);
 
 if (profileUpdateError) throw profileUpdateError;

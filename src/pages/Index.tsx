@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import { supabase } from "@/lib/supabase";
+import { ensureProfile } from "@/lib/profile";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
@@ -26,21 +27,21 @@ const Index = () => {
   useEffect(() => {
     const fetchData = async () => {
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
 
+      const user = session?.user;
       if (!user) {
         setLoading(false);
         return;
       }
 
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
-
-      setProfile(profileData);
+      try {
+        const profileData = await ensureProfile(user);
+        setProfile(profileData);
+      } catch (e) {
+        console.error("Error fetching/creating profile:", e);
+      }
       setLoading(false);
     };
 

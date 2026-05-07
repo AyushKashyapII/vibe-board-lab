@@ -31,16 +31,17 @@ const Navbar = ({ title, joinCode, variant = "board" }: NavbarProps) => {
 
     const refresh = async () => {
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!mounted) return;
-      setIsAuthed(!!user);
+      setIsAuthed(!!session?.user);
     };
 
     refresh();
 
-    const { data: sub } = supabase.auth.onAuthStateChange(() => {
-      refresh();
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+      setIsAuthed(!!session?.user);
     });
 
     return () => {

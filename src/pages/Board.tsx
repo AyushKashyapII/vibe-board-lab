@@ -10,6 +10,7 @@ import { getCurrentUser } from "@/lib/auth";
 import LiveCursors from "@/components/LiveCursors";
 import { Knob } from "react-rotary-knob";
 import { fetchCanvas, saveCanvas } from "@/lib/canva";
+import { ensureProfile } from "@/lib/profile";
 import ThicknessWheel from "@/components/ThicknessWheel";
 import MiniMap from "@/components/MiniMap";
 
@@ -153,18 +154,11 @@ const Board = () => {
         if (response && response.id) {
           setUserId(response.id);
 
-          const { data, error } = await supabase
-            .from("profiles")
-            .select("username")
-            .eq("id", response.id)
-            .single();
-
-          if (error) {
-            console.error("Error fetching username:", error);
-          } else if (data) {
-            //console.log("Fetched user:", data);
-            console.log("name", data.username)
-            setUserName(data.username);
+          try {
+            const profile = await ensureProfile(response);
+            setUserName(profile?.username || "");
+          } catch (e) {
+            console.error("Error fetching/creating profile:", e);
           }
         }
       } catch (error) {

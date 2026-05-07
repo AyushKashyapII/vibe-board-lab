@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/lib/supabase";
 import { createBoard } from "@/lib/canva";
+import { ensureProfile } from "@/lib/profile";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -27,34 +28,31 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchData = async () => {
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
 
+      const user = session?.user;
       if (!user) {
         navigate("/login", { replace: true });
         return;
       }
 
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
-
-      if (profileError) {
-        console.error("Error fetching profile:", profileError);
+      let profileData: any = null;
+      try {
+        profileData = await ensureProfile(user);
+        setProfile(profileData);
+      } catch (e) {
+        console.error("Error fetching/creating profile:", e);
         navigate("/login", { replace: true });
         return;
       }
 
-      setProfile(profileData);
-
       const canvasIds = Array.from(
         new Set(
           [
-            ...(profileData.canvas_ids || []),
-            profileData.personal_canvas_id,
-            ...(profileData.shared_canvas_ids || []),
+            ...(profileData?.canvas_ids || []),
+            profileData?.personal_canvas_id,
+            ...(profileData?.shared_canvas_ids || []),
           ].filter(Boolean)
         )
       );

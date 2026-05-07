@@ -128,6 +128,16 @@ const Navbar = ({ title, joinCode, variant = "board" }: NavbarProps) => {
               <Link to="/dashboard">Dashboard</Link>
             </Button>
           )}
+          {!isAuthed && (
+            <>
+              <Button asChild size="sm" variant="ghost">
+                <Link to="/login">Sign in</Link>
+              </Button>
+              <Button asChild size="sm" className="bg-gradient-primary text-white shadow-soft">
+                <Link to="/signup">Get started</Link>
+              </Button>
+            </>
+          )}
           {showBoardControls && (
             <Button
               size="sm"

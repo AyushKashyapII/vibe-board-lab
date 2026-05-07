@@ -252,7 +252,10 @@ const Board = () => {
     if (!id || !userId) return;
 
     if (!socketRef.current) {
-      socketRef.current = io("http://localhost:4000", {
+      const socketUrl =
+        (import.meta as any).env?.VITE_SOCKET_URL ||
+        "http://localhost:4000";
+      socketRef.current = io(socketUrl, {
         transports: ['websocket', 'polling'],
         timeout: 5000,
         reconnection: true,

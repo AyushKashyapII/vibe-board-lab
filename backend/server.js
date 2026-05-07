@@ -5,12 +5,22 @@ import { Server } from "socket.io";
 const app = express();
 const httpServer = createServer(app);
 
+const PORT = process.env.PORT || 4000;
+const CLIENT_ORIGIN =
+  process.env.CLIENT_ORIGIN ||
+  process.env.FRONTEND_URL ||
+  "http://localhost:8080";
+
 const io = new Server(httpServer, {
   cors: {
-    origin: "http://localhost:8080", 
+    origin: CLIENT_ORIGIN,
     methods: ["GET", "POST"],
   },
   transports:['websocket','polling'],
+});
+
+app.get("/health", (_req, res) => {
+  res.status(200).json({ ok: true });
 });
 
 io.on("connection", (socket) => {
@@ -70,6 +80,6 @@ io.on("connection", (socket) => {
 });
 
 
-httpServer.listen(4000, () => {
-  console.log("WebSocket server running on http://localhost:4000");
+httpServer.listen(PORT, () => {
+  console.log(`WebSocket server running on port ${PORT}`);
 });

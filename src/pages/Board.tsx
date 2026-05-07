@@ -213,11 +213,29 @@ const Board = () => {
   }, [flushSave]);
 
   useEffect(() => {
-    if (!socketRef.current || !ctxRef.current) return;
-    const ctx = ctxRef.current;
+    if (!id || !userId) return;
+
+    if (!socketRef.current) {
+      const socketUrl =
+        (import.meta as any).env?.VITE_SOCKET_URL ||
+        "http://localhost:4000";
+      socketRef.current = io(socketUrl, {
+        transports: ['websocket', 'polling'],
+        timeout: 5000,
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: Infinity,
+        reconnectionDelayMax: 5000
+      });
+    }
+    const socket = socketRef.current;
 
     const handleStrokeEnd = ({ stroke }: { stroke: Stroke }) => {
+      // If canvas isn't ready yet, ignore (next events will render once ready)
+      const ctx = ctxRef.current;
+      if (!ctx) return;
       if (stroke.userId === userId) return;
+
       ctx.save();
       ctx.strokeStyle = stroke.color;
       ctx.lineWidth = stroke.width;
@@ -236,29 +254,6 @@ const Board = () => {
       ctx.restore();
     };
 
-    socketRef.current.on("stroke:end", handleStrokeEnd);
-    return () => {
-      socketRef.current?.off("stroke:end", handleStrokeEnd);
-    };
-  }, [userId]);
-
-  useEffect(() => {
-    if (!id || !userId) return;
-
-    if (!socketRef.current) {
-      const socketUrl =
-        (import.meta as any).env?.VITE_SOCKET_URL ||
-        "http://localhost:4000";
-      socketRef.current = io(socketUrl, {
-        transports: ['websocket', 'polling'],
-        timeout: 5000,
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionAttempts: Infinity,
-        reconnectionDelayMax: 5000
-      });
-    }
-    const socket = socketRef.current;
     socket.on("connect", () => {
       //console.log("Connected to server with id:", socket.id);
       console.log(userId, " user id ", id, " board id")
@@ -277,6 +272,7 @@ const Board = () => {
       console.log("Disconnected from server");
       //socket.emit("leaveBoard",{boardId:id,userId})
     });
+    socket.on("stroke:end", handleStrokeEnd);
 
     return () => {
       socket.off("item:add");
@@ -284,6 +280,7 @@ const Board = () => {
       socket.off("item:delete");
       socket.off("connect");
       socket.off("disconnect");
+      socket.off("stroke:end", handleStrokeEnd);
       //socket.emit("leaveBoard", {boardId:id,userId});
     };
   }, [id, userId]);

@@ -9,63 +9,63 @@ All colors MUST be HSL.
 @layer base {
   :root {
     /* Base colors */
-    --background: 240 10% 97%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 36 45% 94%;
+    --foreground: 24 25% 14%;
 
     /* Card and surfaces */
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 38 55% 98%;
+    --card-foreground: 24 25% 14%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 38 55% 98%;
+    --popover-foreground: 24 25% 14%;
 
     /* Brand colors */
-    --primary: 262 100% 65%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 18 78% 50%;
+    --primary-foreground: 36 50% 96%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 32 35% 90%;
+    --secondary-foreground: 24 25% 18%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 34 35% 92%;
+    --muted-foreground: 24 12% 40%;
 
-    --accent: 285 85% 90%;
-    --accent-foreground: 262 100% 45%;
+    --accent: 30 70% 86%;
+    --accent-foreground: 20 55% 28%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
     /* Borders and inputs */
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 262 100% 65%;
+    --border: 28 22% 82%;
+    --input: 28 22% 82%;
+    --ring: 18 78% 50%;
 
     /* Canvas and board colors */
-    --canvas: 240 5% 98%;
-    --toolbar: 0 0% 100%;
-    --toolbar-border: 220 13% 91%;
+    --canvas: 36 45% 95%;
+    --toolbar: 38 55% 98%;
+    --toolbar-border: 28 22% 82%;
 
     /* Sticky note colors */
-    --note-yellow: 48 100% 88%;
-    --note-yellow-foreground: 45 100% 20%;
-    --note-pink: 330 100% 92%;
-    --note-pink-foreground: 330 100% 30%;
-    --note-blue: 210 100% 92%;
-    --note-blue-foreground: 210 100% 30%;
-    --note-green: 120 60% 90%;
-    --note-green-foreground: 120 60% 25%;
-    --note-orange: 25 100% 90%;
-    --note-orange-foreground: 25 100% 25%;
+    --note-yellow: 45 95% 86%;
+    --note-yellow-foreground: 24 35% 18%;
+    --note-pink: 16 85% 88%;
+    --note-pink-foreground: 18 55% 25%;
+    --note-blue: 28 55% 88%;
+    --note-blue-foreground: 20 40% 22%;
+    --note-green: 38 50% 86%;
+    --note-green-foreground: 22 35% 20%;
+    --note-orange: 24 90% 84%;
+    --note-orange-foreground: 18 55% 25%;
 
     /* Shadows and effects */
     --shadow-soft: 0 2px 20px -4px hsl(220 13% 0% / 0.1);
     --shadow-medium: 0 8px 30px -8px hsl(220 13% 0% / 0.15);
     --shadow-strong: 0 15px 40px -10px hsl(220 13% 0% / 0.2);
-    --glow-primary: 0 0 30px hsl(262 100% 65% / 0.3);
+    --glow-primary: 0 0 30px hsl(18 78% 50% / 0.28);
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(262 100% 65%), hsl(285 85% 70%));
-    --gradient-canvas: linear-gradient(180deg, hsl(240 5% 98%), hsl(240 8% 96%));
+    --gradient-primary: linear-gradient(135deg, hsl(18 78% 50%), hsl(30 75% 55%));
+    --gradient-canvas: linear-gradient(180deg, hsl(36 45% 95%), hsl(34 40% 92%));
 
     --radius: 0.75rem;
 
@@ -88,63 +88,63 @@ All colors MUST be HSL.
 
   .dark {
     /* Base colors */
-    --background: 222 47% 8%;
-    --foreground: 210 40% 98%;
+    --background: 22 25% 9%;
+    --foreground: 36 45% 94%;
 
     /* Card and surfaces */
-    --card: 222 47% 11%;
-    --card-foreground: 210 40% 98%;
+    --card: 22 25% 12%;
+    --card-foreground: 36 45% 94%;
 
-    --popover: 222 47% 11%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 22 25% 12%;
+    --popover-foreground: 36 45% 94%;
 
     /* Brand colors */
-    --primary: 262 100% 70%;
-    --primary-foreground: 222 47% 8%;
+    --primary: 28 88% 62%;
+    --primary-foreground: 22 25% 10%;
 
-    --secondary: 217 32% 17%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 22 18% 18%;
+    --secondary-foreground: 36 45% 94%;
 
-    --muted: 217 32% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 22 18% 18%;
+    --muted-foreground: 30 15% 68%;
 
-    --accent: 285 85% 25%;
-    --accent-foreground: 285 85% 90%;
+    --accent: 18 35% 20%;
+    --accent-foreground: 32 40% 90%;
 
     --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
 
     /* Borders and inputs */
-    --border: 217 32% 20%;
-    --input: 217 32% 20%;
-    --ring: 262 100% 70%;
+    --border: 22 18% 22%;
+    --input: 22 18% 22%;
+    --ring: 28 88% 62%;
 
     /* Canvas and board colors */
-    --canvas: 222 47% 10%;
-    --toolbar: 222 47% 12%;
-    --toolbar-border: 217 32% 20%;
+    --canvas: 22 25% 11%;
+    --toolbar: 22 25% 12%;
+    --toolbar-border: 22 18% 22%;
 
     /* Sticky note colors (darker variants) */
-    --note-yellow: 48 90% 75%;
-    --note-yellow-foreground: 45 100% 15%;
-    --note-pink: 330 85% 80%;
-    --note-pink-foreground: 330 100% 20%;
-    --note-blue: 210 90% 80%;
-    --note-blue-foreground: 210 100% 20%;
-    --note-green: 120 50% 75%;
-    --note-green-foreground: 120 60% 15%;
-    --note-orange: 25 90% 75%;
-    --note-orange-foreground: 25 100% 15%;
+    --note-yellow: 42 70% 70%;
+    --note-yellow-foreground: 24 35% 14%;
+    --note-pink: 18 70% 72%;
+    --note-pink-foreground: 20 35% 14%;
+    --note-blue: 30 40% 72%;
+    --note-blue-foreground: 22 30% 14%;
+    --note-green: 35 45% 70%;
+    --note-green-foreground: 22 30% 14%;
+    --note-orange: 24 75% 68%;
+    --note-orange-foreground: 22 35% 14%;
 
     /* Shadows and effects */
     --shadow-soft: 0 2px 20px -4px hsl(0 0% 0% / 0.3);
     --shadow-medium: 0 8px 30px -8px hsl(0 0% 0% / 0.4);
     --shadow-strong: 0 15px 40px -10px hsl(0 0% 0% / 0.5);
-    --glow-primary: 0 0 30px hsl(262 100% 70% / 0.4);
+    --glow-primary: 0 0 30px hsl(28 88% 62% / 0.34);
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(262 100% 70%), hsl(285 85% 75%));
-    --gradient-canvas: linear-gradient(180deg, hsl(222 47% 10%), hsl(222 50% 12%));
+    --gradient-primary: linear-gradient(135deg, hsl(28 88% 62%), hsl(18 60% 58%));
+    --gradient-canvas: linear-gradient(180deg, hsl(22 25% 11%), hsl(22 25% 13%));
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;

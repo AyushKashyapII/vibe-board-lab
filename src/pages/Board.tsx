@@ -86,6 +86,57 @@ const Board = () => {
   const [remoteCursors, setRemoteCursors] = useState<Record<string, { userName: string; x: number, y: number }>>({});
 
   const { id } = useParams<{ id: string }>();
+  const hasLoadedInitialItemsRef = useRef(false);
+  const dirtyRef = useRef(false);
+  const savingRef = useRef(false);
+
+  const screenToCanvas = useCallback((clientX: number, clientY: number) => {
+    const container = containerRef.current;
+    if (!container) return { x: 0, y: 0 };
+    const rect = container.getBoundingClientRect();
+    const vx = viewportRef.current.x;
+    const vy = viewportRef.current.y;
+    const s = viewportRef.current.scale;
+
+    const localX = clientX - rect.left;
+    const localY = clientY - rect.top;
+
+    const canvasX = (localX - vx) / s;
+    const canvasY = (localY - vy) / s;
+
+    return {
+      x: Math.max(0, Math.min(CANVAS_SIZE, canvasX)),
+      y: Math.max(0, Math.min(CANVAS_SIZE, canvasY)),
+    };
+  }, []);
+
+  // convert canvas coords -> DOM (container relative) coordinates for positioning overlay elements
+  const canvasToDom = useCallback((canvasX: number, canvasY: number) => {
+    const vx = viewportRef.current.x;
+    const vy = viewportRef.current.y;
+    const s = viewportRef.current.scale;
+
+    return {
+      x: Math.round(vx + canvasX * s),
+      y: Math.round(vy + canvasY * s),
+    };
+  }, []);
+
+  const flushSave = useCallback(async () => {
+    if (!id) return;
+    if (!dirtyRef.current) return;
+    if (savingRef.current) return;
+
+    savingRef.current = true;
+    try {
+      await saveCanvas(id, items);
+      dirtyRef.current = false;
+    } catch (e) {
+      console.error("Auto-save failed:", e);
+    } finally {
+      savingRef.current = false;
+    }
+  }, [id, items]);
   // useEffect(()=>{
   //   if(!id) return;
   //   const timeout=setTimeout(()=>{
@@ -129,11 +180,43 @@ const Board = () => {
     if (data) {
       data.then((items) => {
         setItems(items);
+        hasLoadedInitialItemsRef.current = true;
       }).catch((err) => {
         console.log("Error in fetching canvas", err);
       });
     }
   }, [])
+
+  // mark as dirty when items change (skip initial load)
+  useEffect(() => {
+    if (!hasLoadedInitialItemsRef.current) return;
+    dirtyRef.current = true;
+  }, [items]);
+
+  // periodic auto-save
+  useEffect(() => {
+    if (!id) return;
+    const t = window.setInterval(() => {
+      flushSave();
+    }, 15000);
+    return () => window.clearInterval(t);
+  }, [id, flushSave]);
+
+  // save on tab close / backgrounding
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "hidden") flushSave();
+    };
+    const onBeforeUnload = () => {
+      flushSave();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("beforeunload", onBeforeUnload);
+    };
+  }, [flushSave]);
 
   useEffect(() => {
     if (!socketRef.current || !ctxRef.current) return;
@@ -254,14 +337,20 @@ const Board = () => {
 
       const canvasPos = screenToCanvas(e.clientX, e.clientY);
       //console.log(userId)
-      socket.emit("cursor:move", { boardId: id, userId, userName, x: canvasPos.x, y: canvasPos.y });
+      socket.emit("cursor:move", {
+        boardId: id,
+        userId,
+        userName: userName || "Anonymous",
+        x: canvasPos.x,
+        y: canvasPos.y,
+      });
     }
 
     window.addEventListener("mousemove", handler);
     return () => {
       window.removeEventListener("mousemove", handler);
     }
-  }, [id, userId]);
+  }, [id, userId, userName, screenToCanvas]);
 
   const [canvasName, setCanvasName] = useState("")
   const [joinCode, setJoinCode] = useState("")
@@ -321,41 +410,6 @@ const Board = () => {
         setViewport(viewportRef.current);
       });
     }
-  }, []);
-
-  const screenToCanvas = useCallback((clientX: number, clientY: number) => {
-    const container = containerRef.current;
-    if (!container) return { x: 0, y: 0 };
-    const rect = container.getBoundingClientRect();
-    const vx = viewportRef.current.x;
-    const vy = viewportRef.current.y;
-    const s = viewportRef.current.scale;
-
-    // client relative to container top-left
-    const localX = clientX - rect.left;
-    const localY = clientY - rect.top;
-
-    // convert to canvas (unscaled logical) coordinates
-    const canvasX = (localX - vx) / s;
-    const canvasY = (localY - vy) / s;
-
-    // clamp to canvas bounds
-    return {
-      x: Math.max(0, Math.min(CANVAS_SIZE, canvasX)),
-      y: Math.max(0, Math.min(CANVAS_SIZE, canvasY))
-    };
-  }, []);
-
-  // convert canvas coords -> DOM (container relative) coordinates for positioning overlay elements
-  const canvasToDom = useCallback((canvasX: number, canvasY: number) => {
-    const vx = viewportRef.current.x;
-    const vy = viewportRef.current.y;
-    const s = viewportRef.current.scale;
-
-    return {
-      x: Math.round(vx + canvasX * s),
-      y: Math.round(vy + canvasY * s)
-    };
   }, []);
 
   // history
@@ -842,7 +896,7 @@ const Board = () => {
         style={{ touchAction: "none" }}
       >
         {/* Zoom display */}
-        <div className="absolute top-4 right-4 bg-white/90 px-3 py-2 rounded shadow z-40 text-sm">
+        <div className="absolute top-4 right-4 z-40 rounded-md bg-background/80 px-3 py-2 text-sm text-foreground shadow-sm ring-1 ring-border backdrop-blur">
           Zoom: {Math.round(viewport.scale * 100)}%
         </div>
 

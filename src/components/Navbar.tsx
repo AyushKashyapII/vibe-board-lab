@@ -4,6 +4,7 @@ import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 interface NavbarProps {
   title: string;
@@ -18,11 +19,35 @@ const Navbar = ({ title, joinCode, variant = "board" }: NavbarProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [newName, setNewName] = useState(title);
   const showBoardControls = variant === "board" && !!id;
+  const [isAuthed, setIsAuthed] = useState(false);
 
   // keep newName in sync with prop title if it changes from outside
   useEffect(() => {
     setNewName(title);
   }, [title]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const refresh = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!mounted) return;
+      setIsAuthed(!!user);
+    };
+
+    refresh();
+
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      refresh();
+    });
+
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
 
   const handleShare = async () => {
     if (!joinCode) {
@@ -73,10 +98,21 @@ const Navbar = ({ title, joinCode, variant = "board" }: NavbarProps) => {
               autoFocus
             />
           ) : (
-            <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              Live Mood Board
-              {showBoardControls && newName ? ` — ${newName}` : ""}
-            </h1>
+            <div className="flex items-center gap-2">
+              <img
+                src="/moodboard-icon.svg"
+                alt="MoodBoard"
+                className="h-7 w-7 rounded-md ring-1 ring-border bg-background/70 p-1"
+                draggable={false}
+              />
+              {showBoardControls ? (
+                <h1 className="text-lg font-semibold text-foreground">{newName || "Untitled board"}</h1>
+              ) : (
+                <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+                  MoodBoard
+                </h1>
+              )}
+            </div>
           )}
 
           {showBoardControls && (
@@ -87,6 +123,11 @@ const Navbar = ({ title, joinCode, variant = "board" }: NavbarProps) => {
         </div>
 
         <div className="flex items-center gap-2">
+          {isAuthed && (
+            <Button asChild size="sm" variant="outline" className="bg-background/40">
+              <Link to="/dashboard">Dashboard</Link>
+            </Button>
+          )}
           {showBoardControls && (
             <Button
               size="sm"

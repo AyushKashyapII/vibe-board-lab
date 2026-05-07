@@ -36,11 +36,13 @@ const MiniMap: React.FC<MiniMapProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const isDark = document.documentElement.classList.contains("dark");
+
     // Clear canvas
     ctx.clearRect(0, 0, MINIMAP_WIDTH, MINIMAP_HEIGHT);
 
-    // Draw simple white background
-    ctx.fillStyle = '#ffffff';
+    // Draw background that works in dark mode too
+    ctx.fillStyle = isDark ? '#1a1410' : '#ffffff';
     ctx.fillRect(0, 0, MINIMAP_WIDTH, MINIMAP_HEIGHT);
 
     // Draw items
@@ -65,21 +67,21 @@ const MiniMap: React.FC<MiniMapProps> = ({
         ctx.fillRect(x, y, Math.max(2, width), Math.max(2, height));
         
         // Add border
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+        ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.2)';
         ctx.lineWidth = 0.5;
         ctx.strokeRect(x, y, Math.max(2, width), Math.max(2, height));
       } else if (item.type === 'image') {
         // Draw image placeholder
-        ctx.fillStyle = '#e5e7eb';
+        ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.12)' : '#e5e7eb';
         ctx.fillRect(x, y, Math.max(2, width), Math.max(2, height));
         
         // Add border
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.3)';
         ctx.lineWidth = 0.5;
         ctx.strokeRect(x, y, Math.max(2, width), Math.max(2, height));
         
         // Add image icon (simple cross)
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.45)' : 'rgba(0, 0, 0, 0.5)';
         ctx.lineWidth = 1;
         const centerX = x + width / 2;
         const centerY = y + height / 2;
@@ -109,18 +111,18 @@ const MiniMap: React.FC<MiniMapProps> = ({
     const clampedHeight = Math.min(viewportHeight, MINIMAP_HEIGHT - clampedY);
 
     // Draw viewport rectangle
-    ctx.strokeStyle = '#3b82f6';
+    ctx.strokeStyle = isDark ? '#fb923c' : '#3b82f6';
     ctx.lineWidth = 2;
     ctx.setLineDash([]);
     ctx.strokeRect(clampedX, clampedY, clampedWidth, clampedHeight);
 
     // Draw viewport fill with transparency
-    ctx.fillStyle = 'rgba(59, 130, 246, 0.1)';
+    ctx.fillStyle = isDark ? 'rgba(251, 146, 60, 0.12)' : 'rgba(59, 130, 246, 0.1)';
     ctx.fillRect(clampedX, clampedY, clampedWidth, clampedHeight);
 
     // Add corners for better visibility
     const cornerSize = 4;
-    ctx.fillStyle = '#3b82f6';
+    ctx.fillStyle = isDark ? '#fb923c' : '#3b82f6';
     
     // Top-left corner
     ctx.fillRect(clampedX - 1, clampedY - 1, cornerSize, cornerSize);
@@ -195,7 +197,7 @@ const MiniMap: React.FC<MiniMapProps> = ({
 
   return (
     <div className={`fixed bottom-4 right-4 z-50 ${className}`}>
-      <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+      <div className="rounded-lg shadow-lg ring-1 ring-border bg-background/80 backdrop-blur overflow-hidden">
         <div
           ref={containerRef}
           className="relative cursor-crosshair select-none"
@@ -210,7 +212,7 @@ const MiniMap: React.FC<MiniMapProps> = ({
             ref={canvasRef}
             width={MINIMAP_WIDTH}
             height={MINIMAP_HEIGHT}
-            className="border border-gray-300"
+            className="border border-border"
           />
           
           {/* Overlay for better interaction feedback */}

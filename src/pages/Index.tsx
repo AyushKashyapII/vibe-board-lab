@@ -8,7 +8,6 @@ import {
   Palette,
   Sparkles,
   Users,
-  Plus,
   LogIn,
   UserPlus,
   Zap,
@@ -16,53 +15,13 @@ import {
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import { supabase } from "@/lib/supabase";
-import { createBoard } from "@/lib/canva";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
 const Index = () => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<any>(null);
-  const [canvases, setCanvases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const [joinCode, setJoinCode] = useState("");
-  const [joinError, setJoinError] = useState("");
-
-  const handleBoardCreate = async () => {
-    setLoading(true);
-    const canvas = await createBoard(profile.id, "First canvas");
-    if (canvas) {
-      navigate(`/board/${canvas.id}`);
-    } else {
-      console.log("Error in creating board");
-    }
-    setLoading(false);
-  };
-
-  const handleJoinCanvas = async () => {
-    if (!joinCode) return;
-    setJoinError("");
-
-    const { data, error } = await supabase.rpc("join_canvas_by_code", {
-      p_join_code: joinCode,
-    });
-
-    if (error || !data) {
-      setJoinError("Invalid join code. Please try again.");
-      return;
-    }
-
-    navigate(`/board/${data}`);
-  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -82,25 +41,6 @@ const Index = () => {
         .single();
 
       setProfile(profileData);
-
-      const canvasIds = Array.from(
-        new Set(
-          [
-            ...(profileData.canvas_ids || []),
-            profileData.personal_canvas_id,
-            ...(profileData.shared_canvas_ids || []),
-          ].filter(Boolean)
-        )
-      );
-
-      if (canvasIds.length > 0) {
-        const { data: canvasData } = await supabase
-          .from("canvases")
-          .select("*")
-          .in("id", canvasIds);
-
-        setCanvases(canvasData || []);
-      }
       setLoading(false);
     };
 
@@ -113,49 +53,58 @@ const Index = () => {
 
       <main className="pt-20 pb-16 px-6">
         <div className="mx-auto w-full max-w-6xl">
-          {!profile ? (
-            <>
-              <section className="grid gap-10 lg:grid-cols-2 items-center">
-                <div className="text-left">
+          <>
+            <section className="grid gap-10 lg:grid-cols-2 items-center">
+              <div className="text-left">
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-sm text-muted-foreground"
+                >
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  Real-time moodboards for teams & solo creators
+                </motion.div>
+
+                <motion.h1
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.05 }}
+                  className="mt-5 text-5xl md:text-6xl font-extrabold tracking-tight"
+                >
+                  A live canvas for ideas,
+                  <span className="block bg-gradient-to-r from-primary to-[hsl(var(--accent-foreground))] bg-clip-text text-transparent">
+                    sketches, and inspiration.
+                  </span>
+                </motion.h1>
+
+                <motion.p
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.1 }}
+                  className="mt-5 text-lg text-muted-foreground leading-relaxed max-w-xl"
+                >
+                  Create boards, drop images, write sticky notes, and draw together in
+                  real-time. Share a join code and start collaborating instantly.
+                </motion.p>
+
+                {!loading && (
                   <motion.div
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
-                    className="inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-sm text-muted-foreground"
+                    transition={{ duration: 0.6, delay: 0.15 }}
+                    className="mt-8 flex flex-col sm:flex-row gap-4"
                   >
-                    <Sparkles className="h-4 w-4 text-primary" />
-                    Real-time moodboards for teams & solo creators
-                  </motion.div>
-
-                  <motion.h1
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.05 }}
-                    className="mt-5 text-5xl md:text-6xl font-extrabold tracking-tight"
-                  >
-                    A live canvas for ideas,
-                    <span className="block bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
-                      sketches, and inspiration.
-                    </span>
-                  </motion.h1>
-
-                  <motion.p
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.1 }}
-                    className="mt-5 text-lg text-muted-foreground leading-relaxed max-w-xl"
-                  >
-                    Create boards, drop images, write sticky notes, and draw together in
-                    real-time. Share a join code and start collaborating instantly.
-                  </motion.p>
-
-                  {!loading && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.6, delay: 0.15 }}
-                      className="mt-8 flex flex-col sm:flex-row gap-4"
-                    >
+                    {profile ? (
+                      <Button
+                        size="lg"
+                        className="bg-gradient-primary text-white shadow-strong text-lg px-6 py-6"
+                        onClick={() => navigate("/dashboard")}
+                      >
+                        Go to dashboard
+                        <ArrowRight className="ml-2 h-5 w-5" />
+                      </Button>
+                    ) : (
                       <Button
                         size="lg"
                         className="bg-gradient-primary text-white shadow-strong text-lg px-6 py-6"
@@ -165,6 +114,18 @@ const Index = () => {
                         Create an account
                         <ArrowRight className="ml-2 h-5 w-5" />
                       </Button>
+                    )}
+
+                    {profile ? (
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        className="border-2 text-lg px-6 py-6 bg-background/40"
+                        onClick={() => navigate("/board")}
+                      >
+                        Open board
+                      </Button>
+                    ) : (
                       <Button
                         variant="outline"
                         size="lg"
@@ -174,47 +135,48 @@ const Index = () => {
                         <LogIn className="mr-2 h-5 w-5" />
                         Log in
                       </Button>
-                    </motion.div>
-                  )}
+                    )}
+                  </motion.div>
+                )}
 
-                  <div className="mt-8 flex flex-wrap items-center gap-2">
-                    <Badge variant="secondary">Realtime cursors</Badge>
-                    <Badge variant="secondary">Sticky notes + images</Badge>
-                    <Badge variant="secondary">Infinite canvas vibe</Badge>
-                    <Badge variant="secondary">Share with join code</Badge>
-                  </div>
+                <div className="mt-8 flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary">Realtime cursors</Badge>
+                  <Badge variant="secondary">Sticky notes + images</Badge>
+                  <Badge variant="secondary">Infinite canvas vibe</Badge>
+                  <Badge variant="secondary">Share with join code</Badge>
                 </div>
+              </div>
 
-                <motion.div
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.1 }}
-                  className="relative"
-                >
-                  <div className="absolute -inset-6 rounded-3xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 blur-2xl" />
-                  <Card className="relative overflow-hidden rounded-3xl shadow-strong">
-                    <div className="p-4 border-b bg-background/60">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Palette className="h-5 w-5 text-primary" />
-                          <span className="font-semibold">Live Mood Board</span>
-                        </div>
-                        <Badge variant="outline">preview</Badge>
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                className="relative"
+              >
+                <div className="absolute -inset-6 rounded-3xl bg-gradient-to-r from-primary/20 to-accent/20 blur-2xl" />
+                <Card className="relative overflow-hidden rounded-3xl shadow-strong">
+                  <div className="p-4 border-b bg-background/60">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Palette className="h-5 w-5 text-primary" />
+                        <span className="font-semibold">MoodBoard</span>
                       </div>
+                      <Badge variant="outline">preview</Badge>
                     </div>
-                    <div className="aspect-[16/10] bg-gradient-to-br from-background to-muted">
-                      <img
-                        src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExdXQ1c2Fjb2V5ZjRrM2h2Y2U2aHh6cHhpcGd5cmh0cTZwZ2hyZyZlcD12MV9naWZzX3NlYXJjaCZjdD1n/JIX9t2j0ZTN9S/giphy.gif"
-                        alt="Animated preview of a creative board"
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                      />
-                    </div>
-                  </Card>
-                </motion.div>
-              </section>
+                  </div>
+                  <div className="aspect-[16/10] bg-gradient-to-br from-background to-muted">
+                    <img
+                      src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExdXQ1c2Fjb2V5ZjRrM2h2Y2U2aHh6cHhpcGd5cmh0cTZwZ2hyZyZlcD12MV9naWZzX3NlYXJjaCZjdD1n/JIX9t2j0ZTN9S/giphy.gif"
+                      alt="Animated preview of a creative board"
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                </Card>
+              </motion.div>
+            </section>
 
-              <section className="mt-16">
+            <section className="mt-16">
                 <div className="grid gap-6 md:grid-cols-3">
                   {[
                     {
@@ -351,79 +313,6 @@ const Index = () => {
                 Built for quick brainstorming, moodboarding, and real-time collaboration.
               </footer>
             </>
-          ) : (
-            <section>
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <div>
-                  <h2 className="text-3xl font-bold">Welcome, {profile.username}</h2>
-                  <p className="mt-2 text-muted-foreground">
-                    Jump back into a canvas, or create a new one.
-                  </p>
-                </div>
-
-                <div className="flex gap-3">
-                  <Button
-                    size="lg"
-                    className="bg-gradient-primary text-white shadow-strong"
-                    onClick={handleBoardCreate}
-                  >
-                    <Plus className="mr-2 h-5 w-5" />
-                    Create Canvas
-                  </Button>
-
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="lg" className="bg-background/40">
-                        <Users className="mr-2 h-5 w-5" />
-                        Join Canvas
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Enter Join Code</DialogTitle>
-                      </DialogHeader>
-                      <Input
-                        placeholder="Paste join code..."
-                        value={joinCode}
-                        onChange={(e) => setJoinCode(e.target.value)}
-                      />
-                      {joinError && (
-                        <p className="text-sm text-red-500 mt-2">{joinError}</p>
-                      )}
-                      <Button className="mt-4 w-full" onClick={handleJoinCanvas}>
-                        Join
-                      </Button>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </div>
-
-              <motion.div
-                className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5 }}
-              >
-                {canvases.map((canvas) => (
-                  <motion.button
-                    type="button"
-                    key={canvas.id}
-                    className="text-left p-6 rounded-2xl bg-background/60 backdrop-blur shadow-soft hover:shadow-medium transition-all border"
-                    whileHover={{ scale: 1.02 }}
-                    onClick={() => navigate(`/board/${canvas.id}`)}
-                  >
-                    <h3 className="font-semibold mb-2 text-foreground flex items-center gap-2">
-                      <Palette className="h-5 w-5 text-primary" />
-                      {canvas.name}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      {canvas.members.length} members
-                    </p>
-                  </motion.button>
-                ))}
-              </motion.div>
-            </section>
-          )}
         </div>
       </main>
     </div>

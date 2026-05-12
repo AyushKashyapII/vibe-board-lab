@@ -1,6 +1,15 @@
 import express from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import { RetainlyServer } from 'retainly';
+
+// Using the same API key, falling back to the one from .env if process.env is empty
+const RETAINLY_KEY = process.env.RETAINLY_API_KEY || "pk_live_fc508ba058dc1cbc8b0c2216c04c842aa8bef5c6e3ac2876";
+const retainly = new RetainlyServer(RETAINLY_KEY, {
+  onError(err) {
+    console.error('[retainly backend] failed to send event', err);
+  },
+});
 
 const app = express();
 const httpServer = createServer(app);
@@ -35,6 +44,11 @@ io.on("connection", (socket) => {
     socket.data.userId=userId;
     //console.log("socket room ",io.sockets.adapter.rooms)
     io.to(boardId).emit("message",`user ${socket.id} joined`);
+    
+    retainly.track('board_joined', {
+      userId,
+      properties: { boardId, socketId: socket.id }
+    }).catch(e => console.error("Retainly track error", e));
   });
 
   socket.on("leaveBoard",({boardId,userId})=>{
@@ -44,6 +58,11 @@ io.on("connection", (socket) => {
       socket.to(boardId).emit("cursor:remove",userId);
       socket.data.boardId=null;
       socket.data.userId=null;
+      
+      retainly.track('board_left', {
+        userId,
+        properties: { boardId }
+      }).catch(e => console.error("Retainly track error", e));
     }
   })
 

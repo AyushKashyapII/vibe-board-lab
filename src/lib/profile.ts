@@ -1,5 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import { retainly } from "@/lib/retainly";
 
 function fallbackUsername(user: User) {
   const meta = (user.user_metadata || {}) as Record<string, any>;
@@ -32,6 +33,14 @@ export async function ensureProfile(user: User) {
     .single();
 
   if (upsertError) throw upsertError;
+
+  try {
+    await retainly.track('profile_created', { userId: user.id });
+    await retainly.identify(user.id, { username });
+  } catch (e) {
+    console.error("Retainly error", e);
+  }
+
   return created;
 }
 

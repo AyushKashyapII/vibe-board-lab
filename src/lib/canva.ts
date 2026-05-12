@@ -1,5 +1,6 @@
 import { BoardItemData } from "@/components/BoardItem";
 import { supabase } from "./supabase";
+import { retainly } from "./retainly";
 
 export async function createBoard(
   userId: string,
@@ -44,6 +45,19 @@ const { error: profileUpdateError } = await supabase
   .eq("id", userId);
 
 if (profileUpdateError) throw profileUpdateError;
+
+try {
+  await retainly.track('canvas_created', {
+    userId,
+    properties: {
+      canvasId: canvas.id,
+      name,
+      type
+    }
+  });
+} catch (e) {
+  console.error("Retainly error", e);
+}
 
   return canvas;
 }

@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { User } from "@supabase/supabase-js";
+import { retainly } from "./retainly";
 
 export interface SignUpData {
   email: string;
@@ -32,6 +33,13 @@ export async function signUp(data: SignUpData) {
       .eq("id", user.id);
 
     if (profileError) throw profileError;
+
+    try {
+      await retainly.identify(user.id, { email, username });
+      await retainly.track('user_signed_up', { userId: user.id });
+    } catch (e) {
+      console.error("Retainly error", e);
+    }
   }
 
   return authData;
@@ -43,12 +51,30 @@ export async function signIn(email: string, password: string) {
     password,
   });
   if (error) throw error;
+  
+  if (data.user) {
+    try {
+      await retainly.track('user_signed_in', { userId: data.user.id });
+    } catch (e) {
+      console.error("Retainly error", e);
+    }
+  }
+
   return { ...data, success: true };
 }
 
 export async function signOut() {
+  const user = await getCurrentUser();
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
+
+  if (user) {
+    try {
+      await retainly.track('user_signed_out', { userId: user.id });
+    } catch (e) {
+      console.error("Retainly error", e);
+    }
+  }
 }
 
 export async function getCurrentUser(): Promise<User | null> {

@@ -18,7 +18,7 @@ const PORT = process.env.PORT || 4000;
 const CLIENT_ORIGIN =
   process.env.CLIENT_ORIGIN ||
   process.env.FRONTEND_URL ||
-  "http://localhost:8080";
+  "https://vibe-board-lab.vercel.app";
 
 const io = new Server(httpServer, {
   cors: {
